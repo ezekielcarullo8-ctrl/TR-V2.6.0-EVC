@@ -3750,3 +3750,37 @@ body.mode-class #add-year-filter {
     grid-template-columns: repeat(2, 1fr);
   }
 }
+
+/* Creates a digital blinking/breathing effect exclusively on the three text dots */
+.breathing-dots {
+  animation: cyberDotBreathe 1.5s infinite ease-in-out;
+  font-weight: 700;
+  display: inline-block;
+}
+
+@keyframes cyberDotBreathe {
+  0%, 100% {
+    opacity: 0.2;
+    transform: scale(0.95);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.05);
+    text-shadow: 0 0 8px #FF2ED1;
+  }
+}
+
+
+.eve-coming-soon-text {
+  color: #00FFB2 !important; /* Vivid neon light green base text [2] */
+  font-family: 'IBM Plex Mono', monospace !important; /* Matches your app's digital style [2] */
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 2px !important;
+  
+  /* High-performance multi-layered neon glow effect [2] */
+  text-shadow: 
+    0 0 6px rgba(0, 255, 178, 0.6), 
+    0 0 16px rgba(0, 255, 178, 0.4), 
+    0 0 32px rgba(0, 255, 178, 0.2) !important;
+}
