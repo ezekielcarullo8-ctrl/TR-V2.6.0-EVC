@@ -3373,7 +3373,7 @@ if (catObj.records.length === 0) {
       return `
         <div class="history-entry" style="padding:10px 0; border-bottom:1px solid rgba(233,240,235,0.08);">
           <div style="display:flex; flex-direction:column; gap:2px;">
-            <span style="font-weight:600; color:#e9f0eb;">${esc(directionLabel)} <b>${esc(otherParty)}</b></span>
+            <span style="font-weight:600; color:#E9F0EB;">${esc(directionLabel)} <b>${esc(otherParty)}</b></span>
             <span class="note">${esc(t.date)}${t.note ? ' • ' + esc(t.note) : ''}</span>
           </div>
           <div style="display:flex; align-items:center; gap:10px; margin-left:12px;">
@@ -3389,7 +3389,7 @@ if (catObj.records.length === 0) {
       <div style="margin-top:22px; background:linear-gradient(135deg, #141c18, #1a2420); border:1px solid rgba(233,240,235,0.10); border-radius:var(--radius); padding:16px 18px; box-shadow:0 2px 8px rgba(0,0,0,0.35);">
         <div style="display:flex; align-items:center; gap:8px; margin-bottom:12px; padding-bottom:10px; border-bottom:1.5px dashed rgba(233,240,235,0.10);">
           <span style="font-size:16px;">⇄</span>
-          <h4 style="margin:0; padding:0; font-size:14px; color:#e9f0eb;">Transfer Transaction Logs</h4>
+          <h4 style="margin:0; padding:0; font-size:14px; color:#E9F0EB;">Transfer Transaction Logs</h4>
           <span class="note" style="margin-left:auto; font-size:11px;">${txfers.length} record(s)</span>
         </div>
         ${txferHtml}
@@ -4707,11 +4707,11 @@ function computeCashbookTotals() {
 
   // 3. Total amount actually turned over to the Main Treasurer — this is what
   //    the "TOTAL REMITS" card should show.
-  const totalRemits = round2(
-    db.cashbook.transactions
-      .filter(isTurnoverLog)
-      .reduce((s, t) => s + (Number(t.amount) || 0), 0)
-  );
+  // The Cash Book TOTAL REMITS card is intentionally synchronized with the
+  // Summary TOTAL COLLECTED card: both show the remaining amount after the
+  // collection remittance toggle is applied.
+  const remittanceTotals = getCollectionRemittanceTotals();
+  const totalRemits = remittanceTotals.remainingCollected;
 
   // 4. Cash On Hand: every real income/remittance inflow, minus expenses,
   //    minus whatever has already been turned over (excluded here so it
@@ -4722,7 +4722,9 @@ function computeCashbookTotals() {
       .reduce((s, t) => s + (Number(t.amount) || 0), 0)
   );
 
-  const cashOnHand = round2(opening + netIncomeAndRemits - totalExpense - totalRemits);
+  // Cash on hand must subtract only money actually remitted, not the display
+  // value shared with Summary TOTAL COLLECTED.
+  const cashOnHand = round2(opening + netIncomeAndRemits - totalExpense - remittanceTotals.totalRemitted);
 
   return { opening, totalIncome, totalExpense, totalRemits, cashOnHand };
 }
@@ -5400,6 +5402,39 @@ async function exportStatementImage() {
   }
 }
 
+function getCollectionRemittanceTotals() {
+  let totalCollected = 0;
+  let totalRemitted = 0;
+
+  Object.values(db.categories || {}).forEach(category => {
+    const collected = round2((category.records || []).reduce((sum, record) => {
+      return sum + (Number(record.paid) || 0);
+    }, 0));
+
+    totalCollected += collected;
+    if (category.remittanceStatus === "remitted") {
+      totalRemitted += collected;
+    }
+  });
+
+  totalCollected = round2(totalCollected);
+  totalRemitted = Math.min(totalCollected, round2(totalRemitted));
+
+  return {
+    totalCollected,
+    totalRemitted,
+    remainingCollected: Math.max(0, round2(totalCollected - totalRemitted))
+  };
+}
+
+function getCollectionTurnoverTotal() {
+  return getCollectionRemittanceTotals().totalRemitted;
+}
+
+function getTotalCollectedAfterRemittance() {
+  return getCollectionRemittanceTotals().remainingCollected;
+}
+
 function renderSummary() {
   const statusEl = document.getElementById("backup-status");
   const lastBackup = localStorage.getItem("lastBackupTime");
@@ -5430,27 +5465,17 @@ function renderSummary() {
     const catsCount = Object.keys(db.categories || {}).length;
     const studsCount = (db.students || []).length;
     
-    // 1. Calculate raw money inside your collection categories
-    let collectionsPaidTotal = 0;
+    // 1. Calculate money inside collection categories.
+    const collectionsPaidTotal = round2(Object.values(db.categories || {}).reduce((sum, c) =>
+      sum + (c.records || []).reduce((categorySum, r) => categorySum + (Number(r.paid) || 0), 0), 0));
     let collectionsDueTotal = 0;
     Object.values(db.categories || {}).forEach(c => {
-      collectionsPaidTotal += (c.records || []).reduce((s, r) => s + (r.paid || 0), 0);
-      collectionsDueTotal += (c.records || []).reduce((s, r) => s + (r.due || 0), 0);
+      collectionsDueTotal += (c.records || []).reduce((s, r) => s + (Number(r.due) || 0), 0);
     });
 
-    // 2. 🌟 FIXED: Searches for the word "turnover" case-insensitively, bypassing dash symbols completely
-    let totalTurnedOverRemittances = 0;
-    if (db.cashbook && Array.isArray(db.cashbook.transactions)) {
-      totalTurnedOverRemittances = db.cashbook.transactions
-        .filter(t => 
-          (t.type === "remittance" || t.category === "Year-Level Remittance Logs") && 
-          t.description && 
-          /turnover/i.test(t.description)
-        )
-        .reduce((s, t) => s + (Number(t.amount) || 0), 0);
-    }
-
-    // 3. Subtract turnovers from collections total so it drops to 0 on closeout
+    // 2. Subtract collection turnovers so Total Collected reflects only funds
+    //    that remain unremitted. This is recalculated after every toggle save.
+    const totalTurnedOverRemittances = getCollectionTurnoverTotal();
     const grandTotalPaid = Math.max(0, round2(collectionsPaidTotal - totalTurnedOverRemittances));
     
     // 4. Recalculate remaining balance outstanding
@@ -6312,25 +6337,28 @@ function renderEveSummary() {
   });
   const totalDue = round2(collectionTotals.reduce((sum, item) => sum + item.due, 0));
   const totalPaid = round2(collectionTotals.reduce((sum, item) => sum + item.paid, 0));
+  // Total Collected must match the main overview and exclude collections already remitted.
+  const totalCollectedAfterRemittance = getCollectionRemittanceTotals().remainingCollected;
   const collectedCollections = collectionTotals.filter(item => item.paid > 0);
-  const unpaidCollections = collectionTotals.filter(item => item.due > 0 && item.paid <= 0);
-  const unpaidBalance = round2(unpaidCollections.reduce((sum, item) => sum + item.balance, 0));
+  const unpaidCollections = collectionTotals.filter(item => item.due > item.paid);
+  // Total Balance is every outstanding amount, including partially paid records.
+  const unpaidBalance = Math.max(0, round2(totalDue - totalPaid));
 
   let html = '<div style="width:100%;">';
 
   /* ═══════ SUMMARY SECTION ═══════ */
   html += `<div class="eve-guide-section" style="border-left:3px solid var(--accent);">`;
   html += `<h4 style="display:flex; align-items:center; gap:8px; margin-bottom:12px;">`;
-  html += `<span class="eve-summary-badge" style="background:var(--accent);">Summary</span> Overview</h4>`;
+  html += `<span class="eve-summary-badge" style="background:var(--accent);">Remittance</span> Overview</h4>`;
   html += `<div style="display:grid; grid-template-columns:repeat(2, 1fr); gap:8px; margin-bottom:12px;">`;
   html += `<div class="eve-summary-card"><h4>Total ${esc(lbl("Year Levels"))}</h4><p>${db.students.length}</p></div>`;
   html += `<div class="eve-summary-card"><h4>All Collection Categories</h4><p>${cats.length}</p></div>`;
-  html += `<div class="eve-summary-card"><h4>Total Collected</h4><p style="color:var(--success);">${peso(totalPaid)}</p></div>`;
+  html += `<div class="eve-summary-card"><h4>Total Collected</h4><p style="color:var(--success);">${peso(totalCollectedAfterRemittance)}</p></div>`;
   html += `<div class="eve-summary-card"><h4>Total Balance</h4><p style="color:var(--danger);">${peso(unpaidBalance)}</p></div>`;
 
   if (mode === "org" && typeof computeCashbookTotals === 'function') {
     const cb = computeCashbookTotals();
-    html += `<div class="eve-summary-card display-only"><h4>Cash Book Balance</h4><p style="color:${cb.cashOnHand < 0 ? 'var(--danger)' : '#E9F0EB'};">${peso(cb.cashOnHand)}</p></div>`;
+    html += `<div class="eve-summary-card display-only"><h4>Cash Book Balance</h4><p style="color:${cb.cashOnHand < 0 ? 'var(--danger)' : 'var(--ink, #1F2A24)'};">${peso(cb.cashOnHand)}</p></div>`;
     html += `<div class="eve-summary-card"><h4>Active Projects</h4><p>${db.projects.length}</p></div>`;
   } else if (mode === "class") {
     const classRecords = Object.values(db.categories || {}).flatMap(category => Array.isArray(category.records) ? category.records : []);
@@ -6362,12 +6390,12 @@ function renderEveSummary() {
     const cb = computeCashbookTotals();
     html += `<div class="eve-guide-section" style="border-left:3px solid var(--success);">`;
     html += `<h4 style="display:flex; align-items:center; gap:8px; margin-bottom:12px;">`;
-    html += `<span class="eve-summary-badge" style="background:var(--success);">Cashbook</span> Ledger</h4>`;
+    html += `<span class="eve-summary-badge" style="background:var(--success);">Income &amp; Expenses</span> Ledger</h4>`;
     html += `<div style="display:grid; grid-template-columns:repeat(2, 1fr); gap:8px; margin-bottom:12px;">`;
     html += `<div class="eve-summary-card display-only"><h4>Opening Balance</h4><p>${peso(cb.opening)}</p></div>`;
     html += `<div class="eve-summary-card"><h4>Total Income</h4><p style="color:var(--success);">${peso(cb.totalIncome)}</p></div>`;
     html += `<div class="eve-summary-card"><h4>Total Expenses</h4><p style="color:var(--danger);">${peso(cb.totalExpense)}</p></div>`;
-    html += `<div class="eve-summary-card"><h4>Cash On Hand</h4><p style="color:${cb.cashOnHand < 0 ? 'var(--danger)' : '#E9F0EB'};">${peso(cb.cashOnHand)}</p></div>`;
+    html += `<div class="eve-summary-card"><h4>Cash On Hand</h4><p style="color:${cb.cashOnHand < 0 ? 'var(--danger)' : 'var(--ink, #1F2A24)'};">${peso(cb.cashOnHand)}</p></div>`;
     html += `</div>`;
 
     html += `</div>`;
@@ -6396,7 +6424,7 @@ function renderEveSummary() {
     html += `<div class="eve-summary-card"><h4>Current Week</h4><p>${cf.startDate ? 'Week ' + currentWeek : '—'}</p></div>`;
     html += `<div class="eve-summary-card"><h4>Total Collected</h4><p style="color:var(--success);">${peso(cfPaid)}</p></div>`;
     html += `<div class="eve-summary-card"><h4>Total Expenses</h4><p style="color:var(--danger);">${peso(cfExp)}</p></div>`;
-    html += `<div class="eve-summary-card"><h4>Net Balance</h4><p style="color:${net < 0 ? 'var(--danger)' : '#E9F0EB'};">${peso(net)}</p></div>`;
+    html += `<div class="eve-summary-card"><h4>Net Balance</h4><p style="color:${net < 0 ? 'var(--danger)' : 'var(--ink, #1F2A24)'};">${peso(net)}</p></div>`;
     html += `<div class="eve-summary-card"><h4>Enrolled</h4><p>${allNames.length}</p></div>`;
     html += `</div>`;
 
@@ -6430,7 +6458,7 @@ function renderEveSummary() {
       const color = balance > 0 ? 'var(--danger)' : 'var(--success)';
       html += `<div style="padding:10px 12px; background:rgba(255,255,255,0.03); border:1px solid rgba(233,240,235,0.08); border-radius:var(--radius-sm);">`;
       html += `<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">`;
-      html += `<b style="font-size:13px; color:#E9F0EB;">${esc(cat)}</b>`;
+      html += `<b style="font-size:13px; color:var(--ink, #1F2A24);">${esc(cat)}</b>`;
       html += `<span style="font-family:'IBM Plex Mono',monospace; font-size:12px; font-weight:600; color:${color};">${peso(paid)} / ${peso(due)}</span>`;
       html += `</div>`;
       html += `<div class="progress-bar" style="height:6px; margin-bottom:4px; background:rgba(255,255,255,0.05);"><div class="progress-fill" style="width:${pct}%;"></div></div>`;
@@ -6456,7 +6484,7 @@ function renderEveSummary() {
     else if (days <= 7) html += `<p style="color:${days <= 3 ? 'var(--success)' : 'var(--warning)'}; font-size:12px; font-weight:600; margin:0;">Last backup: ${days} day(s) ago</p>`;
     else html += `<p style="color:var(--danger); font-size:12px; font-weight:600; margin:0;">⚠ Last backup: ${days} days ago — back up soon!</p>`;
   }
-  html += `<p class="note" style="margin-top:6px; color:var(--muted);">Mode: <b style="color:#E9F0EB;">${mode === 'org' ? 'Organization Treasurer' : 'Class Treasurer'}</b></p>`;
+  html += `<p class="note" style="margin-top:6px; color:var(--muted);">Mode: <b style="color:var(--ink, #1F2A24);">${mode === 'org' ? 'Organization Treasurer' : 'Class Treasurer'}</b></p>`;
   html += `</div>`;
 
   html += '</div>';
@@ -6549,7 +6577,7 @@ function renderEveSummaryDetail(title, section) {
     
     htmlOutput = categoryNames.map(name => {
       return `<div class="item-row" style="cursor:default; padding:12px 14px;">
-        <div><span style="font-size: 15px; font-weight: 600; color: #e9f0eb;">📁 ${esc(name)}</span></div>
+        <div><span style="font-size: 15px; font-weight: 600; color: #E9F0EB;">📁 ${esc(name)}</span></div>
       </div>`;
     }).join("") || `<p class="note">No collection categories found.</p>`;
   }
@@ -6839,14 +6867,14 @@ function renderEveLogs() {
       html += `<div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:${t.note ? '6px' : '0'};">`;
       html += `<div style="display:flex; align-items:center; gap:6px; background:rgba(179,66,59,0.15); border:1px solid rgba(179,66,59,0.25); padding:5px 10px; border-radius:6px;">`;
       html += `<span style="font-size:10px; text-transform:uppercase; color:var(--danger); font-weight:700; letter-spacing:0.5px;">From</span>`;
-      html += `<span style="font-weight:600; color:#e9f0eb; font-size:13px;">${esc(t.from)}</span>`;
+      html += `<span style="font-weight:600; color:#E9F0EB; font-size:13px;">${esc(t.from)}</span>`;
       html += `</div>`;
 
       html += `<span style="color:var(--muted); font-size:14px;">→</span>`;
 
       html += `<div style="display:flex; align-items:center; gap:6px; background:rgba(47,125,83,0.15); border:1px solid rgba(47,125,83,0.25); padding:5px 10px; border-radius:6px;">`;
       html += `<span style="font-size:10px; text-transform:uppercase; color:var(--success); font-weight:700; letter-spacing:0.5px;">To</span>`;
-      html += `<span style="font-weight:600; color:#e9f0eb; font-size:13px;">${esc(t.to)}</span>`;
+      html += `<span style="font-weight:600; color:#E9F0EB; font-size:13px;">${esc(t.to)}</span>`;
       html += `</div>`;
       html += `</div>`;
 
@@ -6878,7 +6906,7 @@ let currentNoteId = null;
 
 function renderNotesList() {
   document.getElementById("notes-folder-list").classList.remove("hidden");
-  document.getElementById("notes-note-list").classList.add("hidden");
+  document.getElementById("notes-note-list")?.classList.add("hidden");
   document.getElementById("notes-editor").classList.add("hidden");
   currentNoteId = null;
 
@@ -6929,7 +6957,7 @@ function openNoteEditor(noteId) {
   currentNoteId = noteId;
   
   document.getElementById("notes-folder-list").classList.add("hidden");
-  document.getElementById("notes-note-list").classList.add("hidden");
+  document.getElementById("notes-note-list")?.classList.add("hidden");
   document.getElementById("notes-editor").classList.remove("hidden");
   document.getElementById("notes-plus-btn").classList.add("hidden");
   
@@ -7724,3 +7752,196 @@ document.addEventListener("click", function (event) {
 
 /* Data button removal + Summary tab are now wired directly in index.html
    (#nav-summary-tab / #eve-summary-tab-section) and in switchTab() above. */
+
+
+   function calcInput(v) {
+  if (calcExpression === "0" && v !== ".") calcExpression = "";
+  calcExpression += v;
+  document.getElementById("calc-display").innerText = calcExpression || "0";
+}
+
+function calcEqual() {
+  if (!calcExpression || calcExpression === "Err") return;
+  try {
+    // Convert visual display operators into valid standard JavaScript math operators
+    let standardExpression = calcExpression.replace(/×/g, "*").replace(/÷/g, "/");
+    
+    // Sanitize to only permit numbers and safe operators
+    const safe = standardExpression.replace(/[^0-9+\-*/.]/g, "");
+    if (!safe) return;
+
+    const res = Function('"use strict"; return (' + safe + ')')();
+    calcExpression = String(Math.round((res + Number.EPSILON) * 100) / 100);
+    document.getElementById("calc-display").innerText = calcExpression;
+  } catch (e) { 
+    calcExpression = "";
+    document.getElementById("calc-display").innerText = "Err"; 
+  }
+}
+
+
+function openEveNotes() {
+  // Wipe out competing background interface cards fluidly
+  _hideAllInteriorInventoryViews();
+
+  const notesModal = document.getElementById("eve-notes-overlay");
+  if (notesModal) {
+    notesModal.classList.remove("hidden");
+    notesModal.classList.add("is-active");
+    notesModal.style.setProperty('display', 'flex', 'important');
+    document.body.style.overflow = "hidden";
+  } else {
+    // Fallback support for structural variance
+    const view = document.getElementById("eve-notes-view");
+    if (view) view.classList.remove("hidden");
+  }
+  
+  // Ensure the action create button remains visible on main screen launch
+  const btn = document.getElementById("notes-plus-btn");
+  if (btn) btn.classList.remove("hidden");
+
+  if (typeof renderNotesList === "function") {
+    renderNotesList();
+  }
+  _lockEveCompanionVisualGaze();
+}
+
+function backToNoteList() {
+  const editor = document.getElementById("notes-editor");
+  if (editor) editor.classList.add("hidden");
+  
+  const folderList = document.getElementById("notes-folder-list");
+  if (folderList) folderList.classList.remove("hidden");
+  
+  const btn = document.getElementById("notes-plus-btn");
+  if (btn) btn.classList.remove("hidden");
+  
+  renderNotesList();
+}
+
+
+/* =========================================================================
+   TOP-BAR FULL-SCREEN CALCULATOR + NOTES BUTTONS
+   Uses the existing calculator state and db.notepad storage above.
+   ========================================================================= */
+(function wireUtilityOverlays() {
+  function setCalcDisplays(value) {
+    document.querySelectorAll("#calc-display").forEach(el => {
+      el.innerText = value || "0";
+    });
+  }
+
+  window.openCalcModal = function () {
+    const overlay = document.getElementById("eve-calc-overlay");
+    if (!overlay) return;
+    overlay.classList.remove("hidden");
+    overlay.style.setProperty("display", "flex", "important");
+    document.body.style.overflow = "hidden";
+    setCalcDisplays(calcExpression);
+  };
+
+  window.closeCalcModal = window.closeEveCalcModal = function () {
+    const overlay = document.getElementById("eve-calc-overlay");
+    if (overlay) {
+      overlay.classList.add("hidden");
+      overlay.style.removeProperty("display");
+    }
+    document.body.style.overflow = "";
+  };
+
+  window.calcInput = function (value) {
+    if (calcExpression === "Err") calcExpression = "";
+    if (calcExpression === "0" && value !== ".") calcExpression = "";
+    const last = calcExpression.slice(-1);
+    if (/^[+*/-]$/.test(value) && /^[+*/-]$/.test(last)) {
+      calcExpression = calcExpression.slice(0, -1);
+    }
+    if (value === "." && /(?:^|[+*/-])\d*\.\d*$/.test(calcExpression)) return;
+    calcExpression += value;
+    setCalcDisplays(calcExpression);
+  };
+
+  window.calcClear = function () {
+    calcExpression = "";
+    setCalcDisplays("0");
+  };
+
+  window.calcBack = function () {
+    calcExpression = calcExpression.slice(0, -1);
+    setCalcDisplays(calcExpression);
+  };
+
+  window.calcEqual = function () {
+    const expression = String(calcExpression || "").trim();
+    if (!expression) return;
+    if (!/^[0-9+*/.()\-\s]+$/.test(expression)) {
+      calcExpression = "Err";
+      setCalcDisplays(calcExpression);
+      return;
+    }
+    try {
+      const result = Function('"use strict"; return (' + expression + ")")();
+      if (!Number.isFinite(result)) throw new Error("Invalid result");
+      calcExpression = String(Math.round((result + Number.EPSILON) * 100) / 100);
+    } catch (error) {
+      calcExpression = "Err";
+    }
+    setCalcDisplays(calcExpression);
+  };
+
+  window.openNotesModal = function () {
+    const overlay = document.getElementById("eve-notes-overlay");
+    if (!overlay) return;
+    overlay.classList.remove("hidden");
+    overlay.classList.add("is-active");
+    overlay.style.setProperty("display", "flex", "important");
+    document.body.style.overflow = "hidden";
+    if (typeof renderNotesList === "function") renderNotesList();
+  };
+
+  window.closeNotesModal = window.closeEveNotesModal = function () {
+    const overlay = document.getElementById("eve-notes-overlay");
+    if (overlay) {
+      overlay.classList.add("hidden");
+      overlay.classList.remove("is-active");
+      overlay.style.removeProperty("display");
+    }
+    document.body.style.overflow = "";
+  };
+
+  document.addEventListener("keydown", event => {
+    if (event.key !== "Escape") return;
+    const calc = document.getElementById("eve-calc-overlay");
+    const notes = document.getElementById("eve-notes-overlay");
+    if (calc && !calc.classList.contains("hidden")) window.closeCalcModal();
+    else if (notes && !notes.classList.contains("hidden")) window.closeNotesModal();
+  });
+})();
+
+/* Fix: the full-screen EVE notes button opens the existing database editor directly. */
+window.createNewNoteFlow = function () {
+  if (typeof db === "undefined") {
+    console.error("Notes database is not initialized yet.");
+    return;
+  }
+
+  if (!db.notepad) db.notepad = { notes: [] };
+  const id = Date.now() + "-" + Math.random().toString(36).slice(2, 7);
+  db.notepad.notes.push({
+    id,
+    title: "New Note",
+    content: "",
+    updated: new Date().toISOString().slice(0, 10)
+  });
+
+  if (typeof saveData === "function") saveData();
+
+  if (typeof openNoteEditor === "function") {
+    openNoteEditor(id);
+  } else {
+    document.getElementById("notes-folder-list")?.classList.add("hidden");
+    document.getElementById("notes-editor")?.classList.remove("hidden");
+    document.getElementById("note-editor-title").value = "New Note";
+    document.getElementById("note-editor-body").value = "";
+  }
+};
