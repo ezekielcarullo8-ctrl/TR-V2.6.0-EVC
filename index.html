@@ -96,7 +96,7 @@
 
       <button id="mode-toggle" class="icon-toggle" onclick="switchMode()" title="Switch Org / Class mode" style="font-size:11px; font-weight:700; font-family:'IBM Plex Mono',monospace; width:auto; padding:0 14px; border-radius:20px;">ORG</button>
       <button id="notes-toggle" class="icon-toggle" onclick="openNotesModal()" title="Notes">📝</button>
-      <button id="calc-toggle" class="icon-toggle" onclick="openCalcModal()" title="Calculator">🧮</button>
+      <button id="calc-toggle" class="icon-toggle" onclick="openCalcModal()" title="Calculator">📱</button>
     </div>
     <div class="right-group">
       <div class="undo-redo-group">
@@ -284,81 +284,6 @@
     <h2>TREASURER'S RECORDER</h2>
     <hr class="header-rule">
 
-    <!-- ADD SECTION -->
-    <div id="add-section" class="page">
-      <h3>Add Collection Category</h3>
-      <div class="row">
-        <input type="text" id="new-category" placeholder="e.g. Newsette Fee">
-        <input type="number" id="new-category-due" placeholder="Amount per Student" step="0.01">
-      </div>
-      <button class="full-btn" onclick="addCategory()">Add Collection</button>
-
-      <hr class="section-divider">
-
-      <div id="org-remittance-box" class="payment-box hidden">
-      <h3>Record Year-Level Remittance</h3>
-      <div class="row">
-        <div class="custom-dropdown">
-          <input type="text" id="add-remittance-collection-search" placeholder="Search or Select Collection..." oninput="filterOrgRemittanceCollection()" onclick="filterOrgRemittanceCollection()">
-          <div id="add-remittance-collection-dropdown" class="dropdown-content"></div>
-        </div>
-        <input type="hidden" id="add-remittance-collection">
-      </div>
-      <div class="row">
-        <div class="custom-dropdown">
-          <input type="text" id="add-remittance-year-level-search" placeholder="Search or Select Year Level..." oninput="filterOrgRemittanceYearLevel()" onclick="filterOrgRemittanceYearLevel()">
-          <div id="add-remittance-year-level-dropdown" class="dropdown-content"></div>
-        </div>
-        <input type="hidden" id="add-remittance-year-level">
-      </div>
-      <div class="row row-center">
-        <input type="date" id="add-remittance-date">
-      </div>
-      <div class="row row-center">
-        <input type="number" id="add-remittance-amount" placeholder="Amount remitted" step="0.01">
-      </div>
-      <div class="row row-center">
-        <input type="text" id="add-remittance-note" placeholder="Note (optional)">
-      </div>
-      <button class="full-btn" onclick="saveAddRemittance()">Record Remittance</button>
-      </div>
-
-      <div id="class-payment-box" class="payment-box">
-      <h3>Record A Payment</h3>
-      <div class="row">
-        <div class="custom-dropdown">
-          <input type="text" id="category-search" placeholder="Search or Select Collection..." onkeyup="filterCategories()" onclick="filterCategories()">
-          <div id="category-list-dropdown" class="dropdown-content"></div>
-        </div> 
-        <input type="hidden" id="category-select">
-      </div>
-
-      <div class="row">
-        <div class="custom-dropdown">
-          <input type="text" id="student-search" placeholder="Search or Select Students..." onkeyup="filterStudentPicker()" onclick="filterStudentPicker()">
-          <div id="student-list-dropdown" class="dropdown-content"></div>
-        </div>
-        <input type="hidden" id="student-select">
-      </div>
-          <div class="row row-center">
-        <input type="date" id="payment-date">
-      </div>
-
-      <div class="row row-center">
-        <input type="text" id="payment-note" placeholder="Note (optional)">
-      </div>
-
-      <div class="row row-center">
-        <input type="number" id="amount-paying" placeholder="Amount Paying Now" step="0.01">
-      </div>
-      <button class="full-btn" onclick="recordPayment()">Record Payment</button>
-      </div>
-      <!-- In ADD tab, replace the tip paragraph: -->
-  <p class="note add-tab-note">
-    <b>💡 Tip:</b> <span class="mode-student-label">Year levels</span> must be added permanently in the <b>Year Level</b> tab before they appear in dropdowns. Payments recorded here automatically sync to your Cash Book ledger.
-  </p>
-    </div>
-
     <!-- STUDENTS (DATABASE) SECTION -->
     <div id="database-section" class="page hidden">
 
@@ -393,6 +318,17 @@
     <!-- RECORDS SECTION -->
     <div id="inventory-section" class="page hidden">
       <div id="category-view">
+        <div id="add-category-box" class="payment-box">
+      <h3>Add Collection Category</h3>
+      <div class="row">
+        <input type="text" id="new-category" placeholder="e.g. Newsette Fee">
+        <input type="number" id="new-category-due" placeholder="Amount per Student" step="0.01">
+      </div>
+      <button class="full-btn" onclick="addCategory()">Add Collection</button>
+        </div>
+
+        <hr class="section-divider">
+
         <h3>Collections A-Z</h3>
         <div class="inventory-wrapper">
           <div id="category-list" class="category-scroll"></div>
@@ -411,14 +347,27 @@
   <button onclick="addAllStudents()">+ <span class="mode-add-all-btn">Add All Year Level</span></button>
           <button onclick="renameCategory()">Rename</button>
           <button onclick="exportCategoryCSV()">Export CSV</button>
-          <button onclick="openTransferModal()" style="background: linear-gradient(135deg, var(--accent-2), var(--warning));">⇄ Transfer</button>
         </div>
         <div id="item-summary" class="item-summary"></div>
         <div class="collection-status-actions">
           <button onclick="openQuickPayModal()" class="quick-pay-action class-only-quick-pay">Quick Pay</button>
-          <button class="paid-filter-action class-only-filter" onclick="setPaidFilter('paid')">PAID</button>
-          <button class="paid-filter-action class-only-filter" onclick="setPaidFilter('partial')">PARTIAL</button>
-          <button class="paid-filter-action class-only-filter" onclick="setPaidFilter('unpaid')">UNPAID</button>
+        </div>
+        <div class="row">
+          <input type="text" id="item-search" placeholder="Search students..." oninput="renderItemList()">
+        </div>
+        <div class="row item-filter-row class-only-filter">
+          <select id="item-status-filter" onchange="setPaidFilter(this.value)">
+            <option value="all">All Status</option>
+            <option value="paid">Paid</option>
+            <option value="partial">Partial</option>
+            <option value="unpaid">Unpaid</option>
+          </select>
+          <select id="item-method-filter" onchange="renderItemList()">
+            <option value="all">All Methods</option>
+            <option value="cash">💵 Cash</option>
+            <option value="gcash">📱 GCash</option>
+          </select>
+          <input type="date" id="item-date-filter" onchange="renderItemList()" title="Show students who paid on this date">
         </div>
         <div class="inside-box-full">
           <p class="note">Tap program year level to add a payment or edit</p>
@@ -849,9 +798,6 @@
 
         
   <nav class="nav-menu">
-    <button class="nav-item active" id="nav-add" onclick="switchTab('add-section', this)">
-      <span>➕</span>Add
-    </button>
     <button class="nav-item" id="nav-students" onclick="switchTab('database-section', this)">
       <span>🎓</span>Year Level
     </button>
@@ -971,58 +917,58 @@
 
   <!-- COLLECTION ITEM EDIT MODAL -->
   <div id="collection-edit-modal" class="activation-overlay hidden">
-    <div class="activation-card collection-edit-card">
-      <div class="fullscreen-header">
-        <button onclick="closeCollectionEdit()">← Close</button>
-        <h3 style="margin-bottom:0; padding-bottom:0;">Edit Record</h3>
-        <div></div>
-      </div>
-      <p class="note" id="collection-edit-student-name" style="text-align:center; font-weight:700; margin-bottom:22px; font-size:18px; color:var(--ink);"></p>
-      
-      <label id="collection-edit-due-label" class="note" style="display:block; margin-bottom:6px; font-weight:600; color:var(--ink);">Amount per Student</label>
-      <input type="number" id="collection-edit-due" step="0.01" placeholder="Amount per Student" style="margin-bottom:16px;">
+<!-- Inside your #collection-edit-modal container -->
+<div class="modal-content collection-edit-card">
+  <div class="fullscreen-header">
+    <button type="button" class="btn-cancel" onclick="closeCollectionEdit()">← Close</button>
+    <h3 id="collection-edit-title">Edit Record</h3>
+  </div>
 
-      
-      <label class="note" style="display:block; margin-bottom:6px; font-weight:600; color:var(--ink);">Add Payment</label>
-      <div class="row" style="margin-bottom:8px;">
-        <input type="number" id="collection-edit-pay" placeholder="Payment amount" step="0.01" style="margin-bottom:0;">
-        <input type="date" id="collection-edit-date" style="margin-bottom:0;">
-      </div>
-      <input type="text" id="collection-edit-note" placeholder="Payment note (optional)" style="margin-bottom:16px;">
-      <!-- Add Payment Action Button Trigger -->
-      <!-- Add Payment Action Button Trigger -->
-      <button class="full-btn" onclick="collectionQuickPay()" style="margin-bottom:16px;">Add Payment</button>
+  <!-- Student / Year Level Display Header -->
+  <h2 id="collection-edit-student-name" style="text-align: center; margin: 12px 0;">-</h2>
 
-<!-- COMPACT COLLAPSIBLE DROPDOWN PAYMENT HISTORY ACCORDION CONTAINER -->
-<div class="remittance-history-dropdown-wrapper" style="margin: 16px 0 !important; width: 100% !important; box-sizing: border-box !important; position: relative !important; overflow: visible !important; z-index: 9999 !important;">
-  
-  <!-- Clickable Interactive Header Toggle Trigger Button -->
-  <button type="button" onclick="event.stopPropagation(); const panel = this.nextElementSibling; const arrow = this.querySelector('.drop-arrow'); if(panel.style.display === 'none') { panel.style.setProperty('display', 'block', 'important'); arrow.innerText = '▲'; } else { panel.style.setProperty('display', 'none', 'important'); arrow.innerText = '▼'; }" style="width: 100% !important; display: flex !important; justify-content: space-between !important; align-items: center !important; padding: 14px 16px !important; background: var(--surface-alt, #faf8f5) !important; border: 1px solid var(--hairline-strong, rgba(0,0,0,0.14)) !important; border-radius: 8px !important; cursor: pointer !important; font-size: 14px !important; font-weight: 700 !important; color: var(--ink, #222222) !important; text-align: left !important; user-select: none !important; box-sizing: border-box !important; min-height: 48px !important; box-shadow: var(--shadow-sm) !important;">
+  <!-- AMOUNT DUE SECTION (With its own Save button right underneath) -->
+  <div class="form-box" style="margin-bottom: 20px;">
+    <label id="collection-edit-due-label" for="collection-edit-due" class="note" style="font-weight: 600; display: block; margin-bottom: 6px;">Amount Due</label>
+    <input type="number" id="collection-edit-due" placeholder="0" min="0" step="any" style="margin-bottom: 10px;">
     
-    <!-- Left Layout Content: Icon, Title, and Hint Tag -->
-    <span style="display: inline-flex !important; align-items: center !important; gap: 8px !important; white-space: nowrap !important;">
-      <span style="font-size: 15px !important; line-height: 1 !important;">📁</span>
-      <span style="font-size: 14px !important; font-weight: 700 !important; color: var(--ink, #222222) !important;">Payment History</span>
-      <span style="font-size: 11px !important; color: var(--accent, #3b6e8f) !important; font-weight: 600 !important; opacity: 0.85 !important; background: rgba(59, 110, 143, 0.08) !important; padding: 2px 6px !important; border-radius: 4px !important; margin-left: 4px !important; font-family: sans-serif !important;">tap to view ▾</span>
-    </span>
-    
-    <!-- Right Layout Content: Dynamic State Tracking Dropping Dropdown Arrow Indicator -->
-    <span class="drop-arrow" style="font-size: 12px !important; color: #777777 !important; display: inline-block !important; font-family: sans-serif !important; flex-shrink: 0 !important; margin-left: auto !important; line-height: 1 !important;">▼</span>
-  </button>
+    <!-- Dedicated Save button for Amount Due fields -->
+    <button type="button" onclick="saveCollectionEdit()" style="width: 100%; height: 44px; font-size: 14px; margin-top: 4px;">Save Amount</button>
+  </div>
 
-  <!-- ── FLOATING POP-OVER DRAWER BOX LAYER CONTAINER (Starts hidden dynamically) ── -->
-  <div id="collection-edit-history" style="display: none !important; position: absolute !important; top: calc(100% + 4px) !important; left: 0px !important; width: 100% !important; max-height: 200px !important; overflow-y: auto !important; box-sizing: border-box !important; background: var(--surface, #ffffff) !important; border: 1px solid var(--hairline-strong, rgba(0,0,0,0.2)) !important; border-radius: 8px !important; z-index: 999999 !important; box-shadow: 0 8px 24px rgba(0,0,0,0.16) !important; padding: 4px 0 !important;">
-    <!-- Your JavaScript function automatically fills this container with history entry lines here -->
+  <div class="section-divider"></div>
+
+  <!-- ADD PAYMENT SECTION -->
+  <div class="form-box">
+    <h4 id="collection-edit-pay-label" style="margin-bottom: 10px;">Add Payment</h4>
+    <div class="row" style="margin-bottom: 10px;">
+      <input type="number" id="collection-edit-pay" placeholder="Payment amount" style="flex: 1;">
+      <input type="date" id="collection-edit-date" style="flex: 1;">
+    </div>
+    <div class="row" style="margin-bottom: 12px;">
+      <input type="text" id="collection-edit-note" placeholder="Payment note (optional)" style="flex: 1;">
+      <div id="collection-edit-method-toggle" class="payment-method-toggle">
+        <button type="button" class="method-btn active" data-method="cash" onclick="setCollectionEditMethod('cash')">💵 Cash</button>
+        <button type="button" class="method-btn" data-method="gcash" onclick="setCollectionEditMethod('gcash')">📱 GCash</button>
+      </div>
+    </div>
+    <button type="button" id="collection-quick-pay-btn" onclick="collectionQuickPay()" style="width: 100%; margin-bottom: 16px;">Add Payment</button>
+  </div>
+
+  <!-- COLLAPSIBLE PAYMENT HISTORY BUTTON DRAWER -->
+  <div class="form-box" style="margin-top: 14px;">
+    <button type="button" class="cf-big-button" onclick="const historyBox = document.getElementById('collection-edit-history-drawer'); historyBox.classList.toggle('hidden');" style="width: 100%; text-align: left; display: flex; justify-content: space-between; align-items: center; background: #fafafa; border: 1px solid var(--hairline); color: var(--ink);">
+      <span id="collection-history-header"><b>Payment History</b></span>
+      <span class="cf-btn-arrow">▼</span>
+    </button>
+    
+    <!-- The hidden collapsible area wrapper -->
+    <div id="collection-edit-history-drawer" class="hidden" style="margin-top: 8px;">
+      <div id="collection-edit-history" class="history-box" style="background: var(--surface-alt); border-radius: var(--radius-sm); max-height: 200px; overflow-y: auto;"></div>
+    </div>
   </div>
 </div>
 
-
-
-
-      
-      
-      <button class="full-btn" onclick="saveCollectionEdit()" style="margin-top:12px;">Save Changes</button>
-      <button class="full-btn btn-cancel" onclick="closeCollectionEdit()">Cancel</button>
 
       <hr class="section-divider">
 
