@@ -656,6 +656,52 @@ button:active {
   background: linear-gradient(135deg, var(--info), var(--accent-2));
 }
 
+/* Collection filter row: status / payment method / date dropdowns */
+.item-filter-row {
+  flex-wrap: wrap;
+  margin-bottom: 18px;
+}
+
+.item-filter-row select,
+.item-filter-row input[type="date"] {
+  flex: 1 1 130px;
+  min-width: 110px;
+  margin-bottom: 0;
+}
+
+/* Cash / GCash payment method selector inside the student payment card */
+.payment-method-toggle {
+  display: flex;
+  gap: 6px;
+  flex: 0 0 auto;
+}
+
+.payment-method-toggle .method-btn {
+  width: auto;
+  padding: 13px 14px;
+  font-size: 12.5px;
+  font-weight: 700;
+  border-radius: var(--radius-sm);
+  background: var(--surface-alt);
+  color: var(--muted);
+  border: 1.5px solid var(--hairline);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+
+.payment-method-toggle .method-btn.active[data-method="cash"] {
+  background: linear-gradient(135deg, var(--success), var(--accent));
+  color: #fff;
+  border-color: transparent;
+}
+
+.payment-method-toggle .method-btn.active[data-method="gcash"] {
+  background: linear-gradient(135deg, #0B57D0, #4C8DFF);
+  color: #fff;
+  border-color: transparent;
+}
+
 .inside-box-full {
   border: 1px solid var(--hairline);
   padding: 22px;
@@ -3140,7 +3186,7 @@ body.style-cyberpunk .statement-print-area * {
   text-shadow: none !important;
 }
 
-/* Payment box in ADD tab */
+/* Card-style box (used for Add Collection Category at the top of Records) */
 .payment-box {
   background: linear-gradient(135deg, var(--surface) 0%, var(--surface-alt) 100%);
   border: 1px solid var(--hairline);
