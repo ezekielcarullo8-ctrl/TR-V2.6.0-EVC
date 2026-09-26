@@ -539,6 +539,7 @@ db.notepad.notes = db.notepad.notes || [];
   let currentCategory = "";
   let editingIndex = null;
   let paidFilter = "all";
+  let collectionEditMethod = "cash";
   let addYearFilter = "all";
   let quickPayYearFilter = "all";
 let addAllSelected = new Set();
@@ -2396,7 +2397,7 @@ function closeCfLedgerOverlay() {
      document.getElementById("profile-breakdown").innerHTML = rows || `<p class="note">This ${lbl("year level").toLowerCase()} isn't part of any collection yet.</p>`;
   }
 
-  // ================= CATEGORY (COLLECTION) PICKER — used in ADD tab =================
+  // ================= CATEGORY (COLLECTION) PICKER =================
   function addCategory() {
     const catInput = document.getElementById("new-category");
     const dueInput = document.getElementById("new-category-due");
@@ -2410,10 +2411,16 @@ function closeCfLedgerOverlay() {
     db.categories[cat] = { amountDue: due, records: [] };
     catInput.value = "";
     dueInput.value = "";
+    
     saveData();
+    
+    // 🌟 FIX: Instantly redraw the Records Tab list view without a manual refresh
+    renderCategories();
+    
     if (isOrg()) populateAddRemittanceForm();
     eveAlert("Collection Added!");
   }
+
 
 function renameCategory() {
   document.getElementById("rename-old-name").innerText = currentCategory;
@@ -2486,7 +2493,7 @@ function filterCategories() {
     document.getElementById("category-list-dropdown").classList.remove("show");
   }
 
-  // ================= STUDENT PICKER — used in ADD tab =================
+  // ================= STUDENT PICKER — used in the former Add tab (payment picker, no longer active) =================
   function filterStudentPicker() {
     const input = document.getElementById("student-search").value.toLowerCase();
     const dropdown = document.getElementById("student-list-dropdown");
@@ -2728,7 +2735,7 @@ function renderCategories() {
 
   const categories = Object.keys(db.categories).sort((a, b) => a.localeCompare(b));
   if (categories.length === 0) {
-    list.innerHTML = `<p class="note">No collections yet. Add one in the ADD tab.</p>`;
+    list.innerHTML = `<p class="note">No collections yet. Add one using the box above.</p>`;
     return;
   }
 
@@ -2929,6 +2936,12 @@ function deleteCat(cat) {
     document.getElementById("item-view-title").innerText = cat.toUpperCase();
     const search = document.getElementById("item-search");
     if (search) search.value = "";
+    const statusFilterEl = document.getElementById("item-status-filter");
+    if (statusFilterEl) statusFilterEl.value = "all";
+    const methodFilterEl = document.getElementById("item-method-filter");
+    if (methodFilterEl) methodFilterEl.value = "all";
+    const dateFilterEl = document.getElementById("item-date-filter");
+    if (dateFilterEl) dateFilterEl.value = "";
     renderItemList();
   }
 
@@ -3336,6 +3349,8 @@ function renderItemList() {
   const catObj = db.categories[currentCategory];
   const box = document.getElementById("item-list");
   const searchTerm = (document.getElementById("item-search")?.value || "").toLowerCase();
+  const itemMethodFilter = document.getElementById("item-method-filter")?.value || "all";
+  const itemDateFilter = document.getElementById("item-date-filter")?.value || "";
 
   const totalDue = catObj.records.reduce((s, r) => s + r.due, 0);
   const totalPaid = catObj.records.reduce((s, r) => s + r.paid, 0);
@@ -3357,7 +3372,7 @@ document.getElementById("item-summary").innerHTML = `
   `;
 
 if (catObj.records.length === 0) {
-    box.innerHTML = `<p class="note">No ${lbl("year level").toLowerCase()} added to this collection yet. Use "${lbl("Add All Year Level")}" above, or record a payment from the ADD tab.</p>`;
+    box.innerHTML = `<p class="note">No ${lbl("year level").toLowerCase()} added to this collection yet. Use "${lbl("Add All Year Level")}" above to get started.</p>`;
   }
   /* ── TRANSFER TRANSACTION LOGS ──
      Every fund movement between collections is permanently logged here
@@ -3405,6 +3420,14 @@ if (catObj.records.length === 0) {
       if (paidFilter === "partial") return r.paid > 0 && r.paid < r.due;
       if (paidFilter === "unpaid") return r.paid <= 0;
       return true;
+    })
+    .filter(r => {
+      if (itemMethodFilter === "all") return true;
+      return Array.isArray(r.history) && r.history.some(h => (h.method || "cash") === itemMethodFilter);
+    })
+    .filter(r => {
+      if (!itemDateFilter) return true;
+      return Array.isArray(r.history) && r.history.some(h => h.date === itemDateFilter);
     });
 
   if (sorted.length === 0) {
@@ -3542,7 +3565,7 @@ box.onclick = function (e) {
   }
 
 function setPaidFilter(filter) {
-  paidFilter = paidFilter === filter ? "all" : filter;
+  paidFilter = filter;
   renderItemList();
 }
 
@@ -3611,6 +3634,7 @@ function openCollectionEdit(index) {
   if (payDate) payDate.value = new Date().toISOString().slice(0, 10);
   if (payAmount) payAmount.value = "";
   if (payNote) payNote.value = "";
+  setCollectionEditMethod("cash");
   
   record.studentLedger = Array.isArray(record.studentLedger) ? record.studentLedger : [];
   renderCollectionEditHistory(record);
@@ -3618,6 +3642,13 @@ function openCollectionEdit(index) {
   updateRecordRosterIndicator();
 }
 
+
+function setCollectionEditMethod(method) {
+  collectionEditMethod = method;
+  document.querySelectorAll('#collection-edit-method-toggle .method-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.method === method);
+  });
+}
 
 function renderCollectionEditHistory(record) {
   const box = document.getElementById("collection-edit-history");
@@ -3647,7 +3678,7 @@ function renderCollectionEditHistory(record) {
               </span>
               
               <span style="font-size: 11.5px !important; color: var(--muted, #666666) !important; line-height: 1.3 !important;">
-                📆 ${esc(entry.date)} ${entry.note ? '• ' + esc(entry.note) : ''}
+                📆 ${esc(entry.date)} • ${(entry.method || "cash") === "gcash" ? "📱 GCash" : "💵 Cash"} ${entry.note ? '• ' + esc(entry.note) : ''}
               </span>
             </div>
             
@@ -3667,9 +3698,11 @@ function closeCollectionEdit() {
 
 function saveCollectionEdit() {
   const record = db.categories[currentCategory]?.records[editingIndex];
-  if (!record) return closeCollectionEdit();
+  if (!record) return;
+  
   const enteredAmount = round2(parseFloat(document.getElementById("collection-edit-due").value) || 0);
   if (enteredAmount < 0) return eveAlert(isOrg() ? "Amount per student cannot be negative." : "Amount Due cannot be negative.", true);
+  
   if (isOrg()) {
     const yearLevel = db.students.find(student => student.name === record.name);
     const studentCount = Math.max(1, getYearLevelStudentCount(yearLevel));
@@ -3678,32 +3711,41 @@ function saveCollectionEdit() {
   } else {
     record.due = enteredAmount;
   }
+  
   saveData();
-  closeCollectionEdit();
   renderItemList();
+  renderCategories();
+  renderSummary();
+  refreshEveSummaryIfVisible();
+  
+  eveAlert("Amount Due updated successfully!");
 }
+
 
 function collectionQuickPay() {
   const record = db.categories[currentCategory]?.records[editingIndex];
   if (!record) return;
   
-  const amount = round2(parseFloat(document.getElementById("collection-edit-pay").value) || 0);
+  const amountInput = document.getElementById("collection-edit-pay");
+  const amount = round2(parseFloat(amountInput.value) || 0);
   if (amount <= 0) return eveAlert("Please enter a valid payment amount.", true);
   
   const date = document.getElementById("collection-edit-date").value || new Date().toISOString().slice(0, 10);
-  const note = document.getElementById("collection-edit-note").value.trim();
+  const noteInput = document.getElementById("collection-edit-note");
+  const note = noteInput.value.trim();
   
-  // Create a unique, traceable ID to link the history array to the ledger logs
+  // Create a unique, traceable ID to link the history array to the ledger logs cleanly
   const transactionId = "TX-" + Date.now() + "-" + Math.random().toString(36).slice(2, 8);
   
-  // Update the group-level collection records
+  // Update the group-level collection records safely
   record.paid = round2(record.paid + amount);
   if (!Array.isArray(record.history)) record.history = [];
   record.history.push({ 
     id: transactionId,
     amount, 
     date, 
-    note: note || "Collection Remittance Entry" 
+    note: note || "Collection Remittance Entry",
+    method: collectionEditMethod || "cash"
   });
   
   // Save directly to the Cash Book with a dedicated "remittance" type flag
@@ -3725,11 +3767,12 @@ function collectionQuickPay() {
   
   saveData();
   
-  // Reset form inputs safely
-  document.getElementById("collection-edit-pay").value = "";
-  document.getElementById("collection-edit-note").value = "";
+  // 🌟 FIX: Reset form fields immediately so background wrappers can't read old parameters and double-submit
+  amountInput.value = "";
+  if (noteInput) noteInput.value = "";
+  setCollectionEditMethod("cash");
   
-  // Re-render UI components to recalculate statistics and refresh layout balances
+  // Re-render components to calculate statistics and refresh layout balances across screens
   renderCollectionEditHistory(record);
   renderItemList();
   renderCategories();
@@ -3740,6 +3783,7 @@ function collectionQuickPay() {
   
   eveAlert(`Remittance of ${peso(amount)} from ${record.name} saved successfully.`);
 }
+
 
 
 
@@ -5699,7 +5743,7 @@ window.addEventListener("DOMContentLoaded", () => {
     `💡 In Class mode, set the weekly due and start date before recording payments.`,
     `💡 Forgot your PIN? Use your device's Activation Code to reset it safely.`,
     `💡 Add all students to a collection at once with the "Add All" button.`,
-    `💡 Student payments recorded in the ADD tab automatically sync to the Cash Book.`,
+    `💡 Student payments recorded in Records automatically sync to the Cash Book.`,
     `💡 Generate a Financial Statement anytime from the Summary tab for GA or audit.`,
     `💡 Keep your backup JSON file safe — it contains all your records!`,
     `💡 Use OR / Voucher numbers in Cash Book for easier tracking during audits.`,
@@ -5805,12 +5849,7 @@ window.addEventListener("DOMContentLoaded", () => {
       if (days > 7) queue.push({ text: `💾 Last backup was ${days} days ago. Back up soon!`, action: 'backup', label: 'Back Up' });
     }
 
-    if (tabId === 'add-section') {
-      if (db.students.length === 0) queue.push({ text: `👋 Add students in the Year Level tab first!`, action: 'goDatabase', label: 'Go' });
-      else if (Object.keys(db.categories).length === 0) queue.push({ text: `💡 Create a collection category first.` });
-      else queue.push({ text: `💡 Use the dropdowns to quickly find students and collections.` });
-    }
-    else if (tabId === 'database-section') {
+    if (tabId === 'database-section') {
       if (db.students.length === 0) queue.push({ text: `👋 Start by adding your first student or year level here.` });
       else queue.push({ text: `💡 Tap any student to see their balance across all collections.` });
     }
@@ -6323,6 +6362,7 @@ function renderEveGuide() {
   box.innerHTML = (mode === "org") ? orgHTML : classHTML;
 }
 
+
 function renderEveSummary() {
   const box = document.getElementById("eve-summary-view");
   if (!box) return;
@@ -6339,9 +6379,6 @@ function renderEveSummary() {
   const totalPaid = round2(collectionTotals.reduce((sum, item) => sum + item.paid, 0));
   // Total Collected must match the main overview and exclude collections already remitted.
   const totalCollectedAfterRemittance = getCollectionRemittanceTotals().remainingCollected;
-  const collectedCollections = collectionTotals.filter(item => item.paid > 0);
-  const unpaidCollections = collectionTotals.filter(item => item.due > item.paid);
-  // Total Balance is every outstanding amount, including partially paid records.
   const unpaidBalance = Math.max(0, round2(totalDue - totalPaid));
 
   let html = '<div style="width:100%;">';
@@ -6355,7 +6392,6 @@ function renderEveSummary() {
   html += `<div class="eve-summary-card"><h4>All Collection Categories</h4><p>${cats.length}</p></div>`;
   html += `<div class="eve-summary-card"><h4>Total Collected</h4><p style="color:var(--success);">${peso(totalCollectedAfterRemittance)}</p></div>`;
   html += `<div class="eve-summary-card"><h4>Total Balance</h4><p style="color:var(--danger);">${peso(unpaidBalance)}</p></div>`;
-
   if (mode === "org" && typeof computeCashbookTotals === 'function') {
     const cb = computeCashbookTotals();
     html += `<div class="eve-summary-card display-only"><h4>Cash Book Balance</h4><p style="color:${cb.cashOnHand < 0 ? 'var(--danger)' : 'var(--ink, #1F2A24)'};">${peso(cb.cashOnHand)}</p></div>`;
@@ -6363,28 +6399,51 @@ function renderEveSummary() {
   } else if (mode === "class") {
     const classRecords = Object.values(db.categories || {}).flatMap(category => Array.isArray(category.records) ? category.records : []);
     const totalExpected = round2(classRecords.reduce((sum, record) => sum + (Number(record.due) || 0), 0));
-    const fullyPaidStudents = classRecords.filter(record => {
-      const due = Number(record.due) || 0;
-      const paid = Number(record.paid) || 0;
-      return due > 0 && paid >= due - 0.005;
-    }).length;
-    const partiallyPaidStudents = classRecords.filter(record => {
-      const due = Number(record.due) || 0;
-      const paid = Number(record.paid) || 0;
-      return due > 0 && paid > 0 && paid < due - 0.005;
-    }).length;
-    const unpaidStudents = classRecords.filter(record => {
-      const due = Number(record.due) || 0;
-      const paid = Number(record.paid) || 0;
-      return due > 0 && paid <= 0;
-    }).length;
+    
+    // Group metrics securely by unique student name to resolve the array multiplication bug
+    const studentMetrics = {};
+    (db.students || []).forEach(s => {
+      studentMetrics[s.name] = { hasCollections: false, owesMoney: false, madePayments: false };
+    });
+
+    classRecords.forEach(record => {
+      if (studentMetrics[record.name]) {
+        studentMetrics[record.name].hasCollections = true;
+        const due = Number(record.due) || 0;
+        const paid = Number(record.paid) || 0;
+        
+        if (due > 0 && paid < due - 0.005) {
+          studentMetrics[record.name].owesMoney = true;
+        }
+        if (paid > 0) {
+          studentMetrics[record.name].madePayments = true;
+        }
+      }
+    });
+
+    let fullyPaidStudents = 0;
+    let partiallyPaidStudents = 0;
+    let unpaidStudents = 0;
+
+    Object.keys(studentMetrics).forEach(name => {
+      const stats = studentMetrics[name];
+      if (!stats.hasCollections) {
+        unpaidStudents++;
+      } else if (!stats.owesMoney) {
+        fullyPaidStudents++;
+      } else if (stats.madePayments) {
+        partiallyPaidStudents++;
+      } else {
+        unpaidStudents++;
+      }
+    });
+
     html += `<div class="eve-summary-card"><h4>Fully Paid Students</h4><p style="color:var(--success);">${fullyPaidStudents}</p></div>`;
     html += `<div class="eve-summary-card"><h4>Partially Paid Students</h4><p style="color:var(--warning);">${partiallyPaidStudents}</p></div>`;
     html += `<div class="eve-summary-card"><h4>Unpaid Students</h4><p style="color:var(--danger);">${unpaidStudents}</p></div>`;
     html += `<div class="eve-summary-card"><h4>Expected</h4><p>${peso(totalExpected)}</p></div>`;
   }
   html += `</div></div>`;
-
   /* ═══════ CASHBOOK SECTION (Org only) ═══════ */
   if (mode === "org" && typeof computeCashbookTotals === 'function') {
     const cb = computeCashbookTotals();
@@ -6396,9 +6455,7 @@ function renderEveSummary() {
     html += `<div class="eve-summary-card"><h4>Total Income</h4><p style="color:var(--success);">${peso(cb.totalIncome)}</p></div>`;
     html += `<div class="eve-summary-card"><h4>Total Expenses</h4><p style="color:var(--danger);">${peso(cb.totalExpense)}</p></div>`;
     html += `<div class="eve-summary-card"><h4>Cash On Hand</h4><p style="color:${cb.cashOnHand < 0 ? 'var(--danger)' : 'var(--ink, #1F2A24)'};">${peso(cb.cashOnHand)}</p></div>`;
-    html += `</div>`;
-
-    html += `</div>`;
+    html += `</div></div>`;
   }
 
   /* ═══════ CLASS FUND SECTION (Class only) ═══════ */
@@ -6433,11 +6490,8 @@ function renderEveSummary() {
       html += `<p style="font-family:'IBM Plex Mono',monospace; font-size:16px; font-weight:700; color:var(--danger); margin:0;">${missed} total missed week(s)</p>`;
       html += `</div>`;
     }
-
     html += `</div>`;
   }
-
-  
 
   /* ═══════ COLLECTIONS BREAKDOWN ═══════ */
   if (cats.length > 0) {
@@ -6465,8 +6519,7 @@ function renderEveSummary() {
       html += `<div style="display:flex; justify-content:space-between; font-size:11px; color:var(--muted);">`;
       html += `<span class="collection-status-line"><span class="status-paid">PAID: ${paidStudents}</span><span class="status-partial">PARTIALLY PAID: ${partialStudents}</span><span class="status-unpaid">UNPAID: ${unpaidStudents}</span></span>`;
       html += `<span>Balance: ${peso(balance)}</span>`;
-      html += `</div>`;
-      html += `</div>`;
+      html += `</div></div>`;
     });
     html += `</div></div>`;
   }
@@ -6489,6 +6542,7 @@ function renderEveSummary() {
 
   html += '</div>';
   box.innerHTML = html;
+  
   box.querySelectorAll('.eve-summary-card:not(.display-only)').forEach(card => {
     const title = card.querySelector('h4')?.innerText.trim() || 'Overview Detail';
     const section = card.closest('.eve-guide-section')?.querySelector('.eve-summary-badge')?.innerText.trim() || 'Overview';
@@ -6502,6 +6556,8 @@ function renderEveSummary() {
     });
   });
 }
+
+
 
 function closeEveSummaryDetail() {
   document.getElementById("eve-summary-detail-overlay")?.classList.add("hidden");
