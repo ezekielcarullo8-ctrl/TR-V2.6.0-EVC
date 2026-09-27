@@ -233,6 +233,50 @@ function toggleTheme() {
   window.addEventListener("DOMContentLoaded", applyThemeAndStyle);
 
   /* =========================================================================
+    SETTINGS DROPDOWN — houses Theme, Mode, Notepad, and Calculator toggles
+    ========================================================================= */
+  function toggleSettingsMenu(e) {
+    if (e) e.stopPropagation();
+    const menu = document.getElementById("settings-menu");
+    if (menu) menu.classList.toggle("hidden");
+  }
+  function closeSettingsMenu() {
+    const menu = document.getElementById("settings-menu");
+    if (menu) menu.classList.add("hidden");
+  }
+  document.addEventListener("click", (e) => {
+    const dropdown = document.getElementById("settings-dropdown");
+    const menu = document.getElementById("settings-menu");
+    if (!dropdown || !menu || menu.classList.contains("hidden")) return;
+    if (!dropdown.contains(e.target)) closeSettingsMenu();
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") closeSettingsMenu();
+  });
+
+  /* =========================================================================
+    PER-COLLECTION "FILTERS" DROPDOWN — status / method / date filters
+    ========================================================================= */
+  function toggleItemFiltersMenu(e) {
+    if (e) e.stopPropagation();
+    const menu = document.getElementById("item-filters-menu");
+    if (menu) menu.classList.toggle("hidden");
+  }
+  function closeItemFiltersMenu() {
+    const menu = document.getElementById("item-filters-menu");
+    if (menu) menu.classList.add("hidden");
+  }
+  document.addEventListener("click", (e) => {
+    const dropdown = document.getElementById("item-filters-dropdown");
+    const menu = document.getElementById("item-filters-menu");
+    if (!dropdown || !menu || menu.classList.contains("hidden")) return;
+    if (!dropdown.contains(e.target)) closeItemFiltersMenu();
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") closeItemFiltersMenu();
+  });
+
+  /* =========================================================================
     MAIN APP
     ========================================================================= */
 
@@ -343,7 +387,7 @@ if (addAllDesc) addAllDesc.innerHTML = `Select which ${lbl("year levels").toLowe
 // Student input placeholder
 // Student input placeholder
 const newStudentInput = document.getElementById('new-student-name');
-if (newStudentInput) newStudentInput.placeholder = isOrg() ? "e.g. BSIT 2" : "e.g. Gon Freecs";
+if (newStudentInput) newStudentInput.placeholder = isOrg() ? "e.g. BSIT 2, BSIT 3" : "e.g. Gon Freecs, Killua Zoldyck";
 
 // Student count input is org-mode only (a "year level" has an enrolled
 // headcount; individual class-mode students don't)
@@ -414,7 +458,7 @@ if (countWrapper) countWrapper.classList.toggle('hidden', !isOrg());
 
   // Fix Add Student / Add Year Level button text
   const addStudentBtn = document.querySelector('#database-section button[onclick="addStudent()"]');
-  if (addStudentBtn) addStudentBtn.innerText = isOrg() ? "Add Year Level" : "Add Student";
+  if (addStudentBtn) addStudentBtn.innerText = isOrg() ? "Add Year Level(s)" : "Add Student(s)";
 
   // Input placeholders in Summary / Org Info
   const orgName = document.getElementById("org-name");
@@ -819,24 +863,56 @@ function switchTab(id, btn) {
 function addStudent() {
   const input = document.getElementById("new-student-name");
   const amountInput = document.getElementById("new-student-amount");
-  const name = input.value.trim();
-  if (!name) return eveAlert("Please enter a " + lbl("year level").toLowerCase() + " name", true);
-  if (db.students.some(s => s.name.toLowerCase() === name.toLowerCase())) {
-    return eveAlert("This " + lbl("year level").toLowerCase() + " is already in the database", true);
+  const rawValue = input.value.trim();
+  const label = lbl("year level").toLowerCase();
+  if (!rawValue) return eveAlert("Please enter a " + label + " name", true);
+
+  // Support comma-separated bulk entry: "Name One, Name Two, Name Three"
+  const names = rawValue
+    .split(",")
+    .map(n => n.trim())
+    .filter(n => n.length > 0);
+
+  if (names.length === 0) return eveAlert("Please enter a " + label + " name", true);
+
+  const perStudentAmount = isOrg() ? Math.max(0, round2(parseFloat(amountInput?.value) || 0)) : 0;
+
+  const added = [];
+  const duplicates = [];
+  const seenThisBatch = new Set();
+
+  names.forEach(name => {
+    const key = name.toLowerCase();
+    if (db.students.some(s => s.name.toLowerCase() === key) || seenThisBatch.has(key)) {
+      duplicates.push(name);
+      return;
+    }
+    seenThisBatch.add(key);
+    db.students.push({
+      id: Date.now() + "-" + Math.random().toString(36).slice(2, 8),
+      name,
+      students: isOrg() ? [] : undefined,
+      perStudentAmount
+    });
+    added.push(name);
+  });
+
+  if (added.length > 0) {
+    saveData();
+    renderStudents();
   }
 
-  const entry = {
-    id: Date.now() + "-" + Math.random().toString(36).slice(2, 8),
-    name,
-    students: isOrg() ? [] : undefined,
-    perStudentAmount: isOrg() ? Math.max(0, round2(parseFloat(amountInput?.value) || 0)) : 0
-  };
-
-  db.students.push(entry);
-  saveData();
-  renderStudents();
   input.value = "";
   if (amountInput) amountInput.value = "";
+
+  const labelPlural = added.length === 1 ? label : lbl("year levels").toLowerCase();
+  if (added.length > 0 && duplicates.length === 0) {
+    if (added.length > 1) eveAlert(`Added ${added.length} ${labelPlural}: ${added.join(", ")}`);
+  } else if (added.length > 0 && duplicates.length > 0) {
+    eveAlert(`Added ${added.length} ${labelPlural}. Skipped duplicate(s): ${duplicates.join(", ")}`, true);
+  } else if (added.length === 0 && duplicates.length > 0) {
+    eveAlert(`All entered ${labelPlural} are already in the database: ${duplicates.join(", ")}`, true);
+  }
 }
 
   /* =========================================================================
@@ -2931,6 +3007,7 @@ function deleteCat(cat) {
     currentCategory = cat;
     editingIndex = null;
     paidFilter = "all";
+    closeItemFiltersMenu();
     document.getElementById("category-view").classList.add("hidden");
     document.getElementById("item-view").classList.remove("hidden");
     document.getElementById("item-view-title").innerText = cat.toUpperCase();
@@ -2947,6 +3024,7 @@ function deleteCat(cat) {
 
   function backToCategories() {
     editingIndex = null;
+    closeItemFiltersMenu();
     document.getElementById("item-view").classList.add("hidden");
     document.getElementById("category-view").classList.remove("hidden");
     renderCategories();
@@ -2971,8 +3049,13 @@ function deleteCat(cat) {
     if (!catObj) return eveAlert("Please open a valid collection first.", true);
     if (!Array.isArray(catObj.records)) catObj.records = [];
 
+    const allStudents = getAddAllStudents();
+    if (allStudents.length === 0) {
+      return eveAlert("You need to add " + lbl("year levels").toLowerCase() + " on the Student Database first, at the " + lbl("Year Level") + " tab.", true);
+    }
+
     const existingNames = getCollectionRecordNames(catObj);
-    const available = getAddAllStudents().filter(student =>
+    const available = allStudents.filter(student =>
       !existingNames.has(student.name.toLowerCase())
     );
 
@@ -3696,48 +3779,39 @@ function closeCollectionEdit() {
   editingIndex = null;
 }
 
-function saveCollectionEdit() {
-  const record = db.categories[currentCategory]?.records[editingIndex];
-  if (!record) return;
-  
-  const enteredAmount = round2(parseFloat(document.getElementById("collection-edit-due").value) || 0);
-  if (enteredAmount < 0) return eveAlert(isOrg() ? "Amount per student cannot be negative." : "Amount Due cannot be negative.", true);
-  
-  if (isOrg()) {
-    const yearLevel = db.students.find(student => student.name === record.name);
-    const studentCount = Math.max(1, getYearLevelStudentCount(yearLevel));
-    if (yearLevel) yearLevel.perStudentAmount = enteredAmount;
-    record.due = round2(enteredAmount * studentCount);
-  } else {
-    record.due = enteredAmount;
-  }
-  
-  saveData();
-  renderItemList();
-  renderCategories();
-  renderSummary();
-  refreshEveSummaryIfVisible();
-  
-  eveAlert("Amount Due updated successfully!");
+
+// 🌟 GLOBAL STATE LOCK (Put this at the very top of your JS script file)
+if (typeof window.isProcessingPayment === "undefined") {
+  window.isProcessingPayment = false;
 }
 
+function collectionQuickPay(event) {
+  // 🌟 FIX 1: Prevent standard HTML form/button submission bubble behaviors
+  if (event && typeof event.preventDefault === "function") {
+    event.preventDefault();
+  }
 
-function collectionQuickPay() {
+  // 🌟 FIX 2: Check if a payment is currently running. If true, block this duplicate run!
+  if (window.isProcessingPayment) return;
+
   const record = db.categories[currentCategory]?.records[editingIndex];
   if (!record) return;
   
   const amountInput = document.getElementById("collection-edit-pay");
   const amount = round2(parseFloat(amountInput.value) || 0);
+  
+  // Exit immediately if there's no money entered
   if (amount <= 0) return eveAlert("Please enter a valid payment amount.", true);
   
+  // 🌟 FIX 3: Activate the interaction lock immediately upon valid amount confirmation
+  window.isProcessingPayment = true;
+
   const date = document.getElementById("collection-edit-date").value || new Date().toISOString().slice(0, 10);
   const noteInput = document.getElementById("collection-edit-note");
   const note = noteInput.value.trim();
   
-  // Create a unique, traceable ID to link the history array to the ledger logs cleanly
   const transactionId = "TX-" + Date.now() + "-" + Math.random().toString(36).slice(2, 8);
   
-  // Update the group-level collection records safely
   record.paid = round2(record.paid + amount);
   if (!Array.isArray(record.history)) record.history = [];
   record.history.push({ 
@@ -3748,7 +3822,6 @@ function collectionQuickPay() {
     method: collectionEditMethod || "cash"
   });
   
-  // Save directly to the Cash Book with a dedicated "remittance" type flag
   if (isOrg()) {
     db.cashbook.transactions.push({
       id: transactionId,
@@ -3767,12 +3840,11 @@ function collectionQuickPay() {
   
   saveData();
   
-  // 🌟 FIX: Reset form fields immediately so background wrappers can't read old parameters and double-submit
-  amountInput.value = "";
+  // Reset fields to ensure background workers don't scrape it again
+  amountInput.value = "0";
   if (noteInput) noteInput.value = "";
   setCollectionEditMethod("cash");
   
-  // Re-render components to calculate statistics and refresh layout balances across screens
   renderCollectionEditHistory(record);
   renderItemList();
   renderCategories();
@@ -3782,6 +3854,45 @@ function collectionQuickPay() {
   if (typeof renderCashbookLog === "function") renderCashbookLog();
   
   eveAlert(`Remittance of ${peso(amount)} from ${record.name} saved successfully.`);
+
+  // 🌟 FIX 4: Clear the processing lock after a brief cooling-off period (1.5 seconds)
+  setTimeout(() => {
+    window.isProcessingPayment = false;
+  }, 1500);
+}
+
+function saveCollectionEdit(event) {
+  // Prevent any form triggers or event bubbles
+  if (event && typeof event.preventDefault === "function") {
+    event.preventDefault();
+  }
+
+  const record = db.categories[currentCategory]?.records[editingIndex];
+  if (!record) return;
+  
+  // Read strictly from the "Amount Due" field
+  const enteredAmount = round2(parseFloat(document.getElementById("collection-edit-due").value) || 0);
+  if (enteredAmount < 0) return eveAlert(isOrg() ? "Amount per student cannot be negative." : "Amount Due cannot be negative.", true);
+  
+  // Process structural targets only
+  if (isOrg()) {
+    const yearLevel = db.students.find(student => student.name === record.name);
+    const studentCount = Math.max(1, getYearLevelStudentCount(yearLevel));
+    if (yearLevel) yearLevel.perStudentAmount = enteredAmount;
+    record.due = round2(enteredAmount * studentCount);
+  } else {
+    record.due = enteredAmount;
+  }
+  
+  saveData();
+  
+  // Refresh layout layout elements
+  renderItemList();
+  renderCategories();
+  renderSummary();
+  refreshEveSummaryIfVisible();
+  
+  eveAlert("Amount Due updated successfully!");
 }
 
 
@@ -6350,7 +6461,7 @@ function renderEveGuide() {
 
       <div class="eve-guide-section">
         <h4>📊 Summary Tab</h4>
-        <p><b>Overview Cards</b> — Total Students, Collection Categories, Total Collected, Total Unpaid Balances, Total Paid Students, and Expected.</p>
+        <p><b>Overview Cards</b> — Total Students, Collection Categories, Total Collected, Total Unpaid Balances, and Expected.</p>
         <p><b>Collections Breakdown</b> — Visual progress bars for each collection showing how much has been collected versus the total expected.</p>
         <p><b>Backup Tab</b> — <b>Export Backup (JSON)</b> saves students, collections, payment histories, Class Fund data, Cash Book entries, projects, settings, and history. <b>Import Backup</b> restores a saved JSON file and replaces the current data, so verify the file before confirming. The tab shows the last backup time. <b>Reset All Data</b> permanently wipes the app only after confirmation.</p>
         <p class="note" style="margin-top:6px;">💡 Class mode hides the Organization Info and Financial Statement sections because those are designed for org-wide GA/audit reporting.</p>
@@ -6399,49 +6510,8 @@ function renderEveSummary() {
   } else if (mode === "class") {
     const classRecords = Object.values(db.categories || {}).flatMap(category => Array.isArray(category.records) ? category.records : []);
     const totalExpected = round2(classRecords.reduce((sum, record) => sum + (Number(record.due) || 0), 0));
-    
-    // Group metrics securely by unique student name to resolve the array multiplication bug
-    const studentMetrics = {};
-    (db.students || []).forEach(s => {
-      studentMetrics[s.name] = { hasCollections: false, owesMoney: false, madePayments: false };
-    });
 
-    classRecords.forEach(record => {
-      if (studentMetrics[record.name]) {
-        studentMetrics[record.name].hasCollections = true;
-        const due = Number(record.due) || 0;
-        const paid = Number(record.paid) || 0;
-        
-        if (due > 0 && paid < due - 0.005) {
-          studentMetrics[record.name].owesMoney = true;
-        }
-        if (paid > 0) {
-          studentMetrics[record.name].madePayments = true;
-        }
-      }
-    });
-
-    let fullyPaidStudents = 0;
-    let partiallyPaidStudents = 0;
-    let unpaidStudents = 0;
-
-    Object.keys(studentMetrics).forEach(name => {
-      const stats = studentMetrics[name];
-      if (!stats.hasCollections) {
-        unpaidStudents++;
-      } else if (!stats.owesMoney) {
-        fullyPaidStudents++;
-      } else if (stats.madePayments) {
-        partiallyPaidStudents++;
-      } else {
-        unpaidStudents++;
-      }
-    });
-
-    html += `<div class="eve-summary-card"><h4>Fully Paid Students</h4><p style="color:var(--success);">${fullyPaidStudents}</p></div>`;
-    html += `<div class="eve-summary-card"><h4>Partially Paid Students</h4><p style="color:var(--warning);">${partiallyPaidStudents}</p></div>`;
-    html += `<div class="eve-summary-card"><h4>Unpaid Students</h4><p style="color:var(--danger);">${unpaidStudents}</p></div>`;
-    html += `<div class="eve-summary-card"><h4>Expected</h4><p>${peso(totalExpected)}</p></div>`;
+    html += `<div class="eve-summary-card" style="grid-column: span 2;"><h4>Expected</h4><p>${peso(totalExpected)}</p></div>`;
   }
   html += `</div></div>`;
   /* ═══════ CASHBOOK SECTION (Org only) ═══════ */
@@ -6964,6 +7034,11 @@ function renderNotesList() {
   document.getElementById("notes-folder-list").classList.remove("hidden");
   document.getElementById("notes-note-list")?.classList.add("hidden");
   document.getElementById("notes-editor").classList.add("hidden");
+  // Whenever the list view is shown, the "+ New Note" button must be visible too —
+  // it only hides while actively editing a note (see openNoteEditor). Restoring it
+  // here (rather than only in backToNoteList) guards every path back to the list,
+  // including closing the notepad mid-edit via the overlay's own "← Back" button.
+  document.getElementById("notes-plus-btn")?.classList.remove("hidden");
   currentNoteId = null;
 
   const box = document.getElementById("notes-folder-list");
@@ -7956,6 +8031,15 @@ function backToNoteList() {
   };
 
   window.closeNotesModal = window.closeEveNotesModal = function () {
+    // Discard any unsaved edit in progress and reset back to the list view
+    // (also restores the "+ New Note" button, which hides while editing).
+    if (typeof backToNoteList === "function") {
+      backToNoteList();
+    } else {
+      document.getElementById("notes-editor")?.classList.add("hidden");
+      document.getElementById("notes-folder-list")?.classList.remove("hidden");
+      document.getElementById("notes-plus-btn")?.classList.remove("hidden");
+    }
     const overlay = document.getElementById("eve-notes-overlay");
     if (overlay) {
       overlay.classList.add("hidden");
