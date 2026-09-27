@@ -92,11 +92,31 @@
   <!-- TOP BAR: theme / style toggles + watermark -->
   <div class="top-bar">
       <div class="toggle-group">
-      <button id="theme-toggle" class="icon-toggle" onclick="toggleTheme()" title="Switch light / dark mode">🌙</button>
-
-      <button id="mode-toggle" class="icon-toggle" onclick="switchMode()" title="Switch Org / Class mode" style="font-size:11px; font-weight:700; font-family:'IBM Plex Mono',monospace; width:auto; padding:0 14px; border-radius:20px;">ORG</button>
-      <button id="notes-toggle" class="icon-toggle" onclick="openNotesModal()" title="Notes">📝</button>
-      <button id="calc-toggle" class="icon-toggle" onclick="openCalcModal()" title="Calculator">📱</button>
+      <div class="settings-dropdown" id="settings-dropdown">
+        <button id="settings-toggle" class="icon-toggle" onclick="toggleSettingsMenu(event)" title="Settings">⚙️</button>
+        <div id="settings-menu" class="settings-menu hidden">
+          <div class="settings-menu-item">
+            
+            <button id="theme-toggle" class="icon-toggle" onclick="toggleTheme(); closeSettingsMenu();" title="Switch light / dark mode">🌙</button>
+          <span class="settings-menu-text">Toggle Theme</span>
+          </div>
+          <div class="settings-menu-item">
+            
+            <button id="mode-toggle" class="icon-toggle" onclick="switchMode(); closeSettingsMenu();" title="Switch Org / Class mode" style="font-size:11px; font-weight:700; font-family:'IBM Plex Mono',monospace; width:auto; padding:0 14px; border-radius:20px;">ORG</button>
+          <span class="settings-menu-text">Toggle Mode</span>
+          </div>
+          <div class="settings-menu-item">
+            
+            <button id="notes-toggle" class="icon-toggle" onclick="openNotesModal(); closeSettingsMenu();" title="Notes">📝</button>
+          <span class="settings-menu-text">Notepad</span>
+          </div>
+          <div class="settings-menu-item">
+            
+            <button id="calc-toggle" class="icon-toggle" onclick="openCalcModal(); closeSettingsMenu();" title="Calculator">📱</button>
+          <span class="settings-menu-text">Calculator</span>
+          </div>
+        </div>
+      </div>
     </div>
     <div class="right-group">
       <div class="undo-redo-group">
@@ -290,7 +310,8 @@
       <div id="student-list-view">
         <!-- In DATABASE tab, replace the first h3: -->
   <h3 id="db-add-header">Add Program & Year Level (Permanent)</h3>
-        <input type="text" id="new-student-name" placeholder="e.g BSIT 2">
+        <input type="text" id="new-student-name" placeholder="e.g BSIT 2, BSIT 3">
+        <p class="note" style="margin: -4px 0 10px 0;">💡 Tip: separate multiple names with commas to add several at once.</p>
         <button class="full-btn" onclick="addStudent()">Add Year Level</button>
 
         <hr class="section-divider">
@@ -299,6 +320,7 @@
   <h3 id="db-list-header">Student Database</h3>
         <p class="note" id="student-count">0 program year level in the database</p>
         <p class="note">Tap a program year level to view their balance across all collections</p>
+        <input type="text" id="search-students-db" placeholder="Search Year Level..." oninput="renderStudents()">
         <div id="student-db-list"></div>
       </div>
 
@@ -353,21 +375,27 @@
           <button onclick="openQuickPayModal()" class="quick-pay-action class-only-quick-pay">Quick Pay</button>
         </div>
         <div class="row">
-          <input type="text" id="item-search" placeholder="Search students..." oninput="renderItemList()">
-        </div>
-        <div class="row item-filter-row class-only-filter">
-          <select id="item-status-filter" onchange="setPaidFilter(this.value)">
-            <option value="all">All Status</option>
-            <option value="paid">Paid</option>
-            <option value="partial">Partial</option>
-            <option value="unpaid">Unpaid</option>
-          </select>
-          <select id="item-method-filter" onchange="renderItemList()">
-            <option value="all">All Methods</option>
-            <option value="cash">💵 Cash</option>
-            <option value="gcash">📱 GCash</option>
-          </select>
-          <input type="date" id="item-date-filter" onchange="renderItemList()" title="Show students who paid on this date">
+          <input type="text" id="item-search" placeholder="Search students..." oninput="renderItemList()" style="flex:1; margin-bottom:0;">
+          <div class="filters-dropdown class-only-filter" id="item-filters-dropdown">
+            <button type="button" class="filters-toggle-btn" onclick="toggleItemFiltersMenu(event)">🔎 Filters</button>
+            <div id="item-filters-menu" class="filters-menu hidden">
+              <label class="filters-menu-label">Status</label>
+              <select id="item-status-filter" onchange="setPaidFilter(this.value)">
+                <option value="all">All Status</option>
+                <option value="paid">Paid</option>
+                <option value="partial">Partial</option>
+                <option value="unpaid">Unpaid</option>
+              </select>
+              <label class="filters-menu-label">Payment Method</label>
+              <select id="item-method-filter" onchange="renderItemList()">
+                <option value="all">All Methods</option>
+                <option value="cash">💵 Cash</option>
+                <option value="gcash">📱 GCash</option>
+              </select>
+              <label class="filters-menu-label">Payment Date</label>
+              <input type="date" id="item-date-filter" onchange="renderItemList()" title="Show students who paid on this date">
+            </div>
+          </div>
         </div>
         <div class="inside-box-full">
           <p class="note">Tap program year level to add a payment or edit</p>
@@ -927,14 +955,29 @@
   <!-- Student / Year Level Display Header -->
   <h2 id="collection-edit-student-name" style="text-align: center; margin: 12px 0;">-</h2>
 
-  <!-- AMOUNT DUE SECTION (With its own Save button right underneath) -->
-  <div class="form-box" style="margin-bottom: 20px;">
-    <label id="collection-edit-due-label" for="collection-edit-due" class="note" style="font-weight: 600; display: block; margin-bottom: 6px;">Amount Due</label>
-    <input type="number" id="collection-edit-due" placeholder="0" min="0" step="any" style="margin-bottom: 10px;">
-    
-    <!-- Dedicated Save button for Amount Due fields -->
-    <button type="button" onclick="saveCollectionEdit()" style="width: 100%; height: 44px; font-size: 14px; margin-top: 4px;">Save Amount</button>
+<div class="due-input-group">
+  <label for="collection-edit-due">Amount Due:</label>
+  <div class="inline-input-wrapper">
+    <!-- Amount Due Input Field -->
+    <input 
+      type="number" 
+      id="collection-edit-due" 
+      step="0.01" 
+      min="0" 
+      placeholder="0.00"
+    >
+    <!-- New Checkmark Button (Strictly saves amount due only) -->
+    <button 
+      type="button" 
+      class="btn-save-check" 
+      onclick="saveCollectionEdit(event)" 
+      title="Save Amount Due"
+    >
+      ✓
+    </button>
   </div>
+</div>
+
 
   <div class="section-divider"></div>
 
