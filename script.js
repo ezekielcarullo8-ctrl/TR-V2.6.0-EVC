@@ -255,6 +255,23 @@ function toggleTheme() {
   });
 
   /* =========================================================================
+    GENERIC AUTO-CLOSE FOR DROPDOWNS/ACCORDIONS — Transaction Logs, Generate
+    Statement (and its nested sub-panels), and the floating Payment History
+    popover. Tapping anywhere outside the open panel's scope closes it.
+    ========================================================================= */
+  document.addEventListener("click", (e) => {
+    document.querySelectorAll(".auto-close-dropdown-content:not(.hidden)").forEach(panel => {
+      const scope = panel.closest(".auto-close-dropdown-scope");
+      if (scope && !scope.contains(e.target)) panel.classList.add("hidden");
+    });
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+      document.querySelectorAll(".auto-close-dropdown-content:not(.hidden)").forEach(panel => panel.classList.add("hidden"));
+    }
+  });
+
+  /* =========================================================================
     PER-COLLECTION "FILTERS" DROPDOWN — status / method / date filters
     ========================================================================= */
   function toggleItemFiltersMenu(e) {
@@ -2487,7 +2504,24 @@ function closeCfLedgerOverlay() {
     db.categories[cat] = { amountDue: due, records: [] };
     catInput.value = "";
     dueInput.value = "";
-    
+
+    // 🌟 Reuse whatever students/year levels are already saved on the
+    // Student Database (Year Level tab) — auto-populate every new
+    // collection with them so they don't need to be re-added manually.
+    const catObj = db.categories[cat];
+    const existingNames = getCollectionRecordNames(catObj);
+    getAddAllStudents().forEach(student => {
+      if (existingNames.has(student.name.toLowerCase())) return;
+      catObj.records.push({
+        name: student.name,
+        due: getYearLevelTotalDue(student, catObj.amountDue),
+        paid: 0,
+        history: [],
+        yearLevelId: student.id || null
+      });
+      existingNames.add(student.name.toLowerCase());
+    });
+
     saveData();
     
     // 🌟 FIX: Instantly redraw the Records Tab list view without a manual refresh
@@ -4306,11 +4340,14 @@ function isRemittanceTxn(txn) {
   const descStr = String(txn.description || "").toLowerCase();
   
   // Comprehensive check across type flags, descriptions, and category string variables
+  // Included 'year-level remitted' and matching checks to support the new terminology
   return typeStr === "remittance" || 
          catStr === "year-level remittance" ||
          catStr === "year-level remittance logs" ||
+         catStr === "year-level remitted" ||
          /remittance/i.test(catStr) || 
-         /remittance/i.test(descStr);
+         /remittance/i.test(descStr) ||
+         /remitted/i.test(catStr);
 }
 
 
@@ -4319,8 +4356,9 @@ function openCashbookLog(kind) {
     const overlay = document.getElementById("cashbook-log-overlay");
     if (!overlay) return;
     
+    // Changed "Year-Level Remittance Logs" to "Year-Level Remitted"
     document.getElementById("cashbook-log-title").innerText = kind === "remittance"
-      ? "Year-Level Remittance Logs"
+      ? "Year-Level Remitted"
       : kind === "general" ? "Income & Expense Logs" : "All Cashbook Logs";
       
     document.getElementById("cashbook-log-search").value = "";
@@ -4372,6 +4410,7 @@ function openCashbookLog(kind) {
       renderCashbookLog();
     });
 }
+
 
 
 // A transaction only counts as "manually recorded" if its category matches
@@ -4868,18 +4907,10 @@ function computeCashbookTotals() {
   const remittanceTotals = getCollectionRemittanceTotals();
   const totalRemits = remittanceTotals.remainingCollected;
 
-  // 4. Cash On Hand: every real income/remittance inflow, minus expenses,
-  //    minus whatever has already been turned over (excluded here so it
-  //    isn't counted as still being on hand).
-  const netIncomeAndRemits = round2(
-    db.cashbook.transactions
-      .filter(t => (t.type === "remittance" || t.type === "income") && !isTurnoverLog(t))
-      .reduce((s, t) => s + (Number(t.amount) || 0), 0)
-  );
-
-  // Cash on hand must subtract only money actually remitted, not the display
-  // value shared with Summary TOTAL COLLECTED.
-  const cashOnHand = round2(opening + netIncomeAndRemits - totalExpense - remittanceTotals.totalRemitted);
+  // 4. Cash On Hand: opening balance + all direct cashbook income + money still
+  //    collected-but-not-yet-remitted from the collections (Total Remits),
+  //    minus expenses actually paid out.
+  const cashOnHand = round2(opening + totalIncome + totalRemits - totalExpense);
 
   return { opening, totalIncome, totalExpense, totalRemits, cashOnHand };
 }
@@ -5240,7 +5271,6 @@ function generateStatement() {
 
   const outputEl = document.getElementById("statement-output");
   if (!outputEl) {
-    // Graceful error alerting through your EVE Smart Assistant interface instead of an uncaught exception
     if (window.eveAlert) {
       window.eveAlert("Error: '#statement-output' container element not found in HTML template.", true);
     } else {
@@ -5252,14 +5282,17 @@ function generateStatement() {
   // Ensure cashbook transactions are safe to map and filter
   const transactionsList = (db.cashbook && Array.isArray(db.cashbook.transactions)) ? db.cashbook.transactions : [];
 
-  const all = [...transactionsList].sort((a, b) =>
-    (a.date || "").localeCompare(b.date || "") || String(a.id).localeCompare(String(b.id))
-  );
+  // Strictly capture entries typed into the manual form card using isManualCashbookTxn()
+  const all = [...transactionsList]
+    .filter(t => isManualCashbookTxn(t) && !isRemittanceTxn(t)) 
+    .sort((a, b) =>
+      (a.date || "").localeCompare(b.date || "") || String(a.id).localeCompare(String(b.id))
+    );
 
   const before = startVal ? all.filter(t => t.date < startVal) : [];
   const beginningBalance = round2(
     (db.cashbook.openingBalance || 0) +
-    before.filter(t => t.type === "income" || t.type === "remittance").reduce((s, t) => s + (Number(t.amount) || 0), 0) -
+    before.filter(t => t.type === "income").reduce((s, t) => s + (Number(t.amount) || 0), 0) -
     before.filter(t => t.type === "expense").reduce((s, t) => s + (Number(t.amount) || 0), 0)
   );
 
@@ -5269,17 +5302,17 @@ function generateStatement() {
     return true;
   });
 
-  const incomeTxns = inRange.filter(t => t.type === "income" || t.type === "remittance");
+  const incomeTxns = inRange.filter(t => t.type === "income");
   const expenseTxns = inRange.filter(t => t.type === "expense");
-
-  const incomeByCategory = {};
-  incomeTxns.forEach(t => { incomeByCategory[t.category] = round2((incomeByCategory[t.category] || 0) + t.amount); });
-  const expenseByCategory = {};
-  expenseTxns.forEach(t => { expenseByCategory[t.category] = round2((expenseByCategory[t.category] || 0) + t.amount); });
 
   const totalReceipts = round2(incomeTxns.reduce((s, t) => s + (Number(t.amount) || 0), 0));
   const totalDisbursements = round2(expenseTxns.reduce((s, t) => s + (Number(t.amount) || 0), 0));
   const endingBalance = round2(beginningBalance + totalReceipts - totalDisbursements);
+
+  let statementReceipts = totalReceipts;
+  let statementDisbursements = totalDisbursements;
+  let statementBeginning = beginningBalance;
+  let statementEnding = endingBalance;
 
   const periodLabel = (startVal || endVal)
     ? `${startVal ? formatDisplayDate(startVal) : 'Beginning'} to ${endVal ? formatDisplayDate(endVal) : 'Present'}`
@@ -5287,20 +5320,23 @@ function generateStatement() {
 
   const org = db.orgSettings || {};
 
-  function replaceCategoryLabel(category) {
-    if (category === "Year Levels Payment") return "All Year Levels Payment";
-    if (category === "All Year Levels Payment") return "All Year Levels Payment";
-    return category;
-  }
+  // 🌟 FIX: prepended "\${t.date} — " directly before the description label text string
+  const incomeRows = (() => {
+    return incomeTxns.map(t => {
+      const displayLabel = t.description || t.category || "Unnamed Income";
+      const datePrefix = t.date ? `${t.date} — ` : "";
+      return `<div class="statement-row"><span>${esc(datePrefix + displayLabel)}</span><span>${peso(t.amount)}</span></div>`;
+    }).join("") || '<p class="note">No receipts recorded for this period.</p>';
+  })();
 
-  const incomeRows = Object.keys(incomeByCategory).sort().map(c => {
-    const displayCat = replaceCategoryLabel(c);
-    return `<div class="statement-row"><span>${esc(displayCat)}</span><span>${peso(incomeByCategory[c])}</span></div>`;
-  }).join("") || '<p class="note">No receipts recorded for this period.</p>';
-
-  const expenseRows = Object.keys(expenseByCategory).sort().map(c =>
-    `<div class="statement-row"><span>${esc(c)}</span><span>${peso(expenseByCategory[c])}</span></div>`
-  ).join("") || '<p class="note">No disbursements recorded for this period.</p>';
+  // 🌟 FIX: prepended "\${t.date} — " directly before the description label text string
+  const expenseRows = (() => {
+    return expenseTxns.map(t => {
+      const displayLabel = t.description || t.category || "Unnamed Expense";
+      const datePrefix = t.date ? `${t.date} — ` : "";
+      return `<div class="statement-row"><span>${esc(datePrefix + displayLabel)}</span><span>${peso(t.amount)}</span></div>`;
+    }).join("") || '<p class="note">No disbursements recorded for this period.</p>';
+  })();
 
   // Render the structured report layout directly into the cleared output node container
   outputEl.innerHTML = `
@@ -5312,17 +5348,17 @@ function generateStatement() {
         <p class="note">For the period: ${esc(periodLabel)}</p>
       </div>
 
-      <div class="statement-row statement-subtotal"><span>Beginning Cash Balance</span><b>${peso(beginningBalance)}</b></div>
+      <div class="statement-row statement-subtotal"><span>Beginning Cash Balance</span><b>${peso(statementBeginning)}</b></div>
 
       <h4 style="margin-top:18px;">Receipts</h4>
       ${incomeRows}
-      <div class="statement-row statement-subtotal"><span>Total Receipts</span><b style="color:var(--success)">${peso(totalReceipts)}</b></div>
+      <div class="statement-row statement-subtotal"><span>Total Receipts</span><b style="color:var(--success)">${peso(statementReceipts)}</b></div>
 
       <h4 style="margin-top:18px;">Disbursements</h4>
       ${expenseRows}
-      <div class="statement-row statement-subtotal"><span>Total Disbursements</span><b style="color:var(--danger)">${peso(totalDisbursements)}</b></div>
+      <div class="statement-row statement-subtotal"><span>Total Disbursements</span><b style="color:var(--danger)">${peso(statementDisbursements)}</b></div>
 
-      <div class="statement-row statement-final"><span>Ending Cash Balance</span><b>${peso(endingBalance)}</b></div>
+      <div class="statement-row statement-final"><span>Ending Cash Balance</span><b>${peso(statementEnding)}</b></div>
 
       <div class="statement-signatures">
         <div><p class="note">Prepared by:</p><p class="sig-line">${esc(org.treasurerName || '_______________________')}</p><p class="note">Treasurer</p></div>
@@ -5332,11 +5368,11 @@ function generateStatement() {
     </div>
   `;
 
-  // Safely trigger viewport alignment only if the scroll target can be cleanly mapped
   if (typeof outputEl.scrollIntoView === "function") {
     outputEl.scrollIntoView({ behavior: "smooth" });
   }
 }
+
 
 
 
@@ -5375,14 +5411,38 @@ async function exportStatementImage() {
   const totalReceipts = round2(incomeTxns.reduce((s, t) => s + (Number(t.amount) || 0), 0));
   const totalDisbursements = round2(expenseTxns.reduce((s, t) => s + (Number(t.amount) || 0), 0));
   const endingBalance = round2(beginningBalance + totalReceipts - totalDisbursements);
+
+  // Keep this fullscreen statement in sync with the CASH ON HAND card when
+  // showing the full, unfiltered period (see the same logic above).
+  let statementReceipts = totalReceipts;
+  let statementDisbursements = totalDisbursements;
+  let statementBeginning = beginningBalance;
+  let statementEnding = endingBalance;
+  if (!startVal && !endVal && typeof computeCashbookTotals === 'function') {
+    const cb = computeCashbookTotals();
+    statementBeginning = cb.opening;
+    statementReceipts = round2(cb.totalIncome + cb.totalRemits);
+    statementDisbursements = cb.totalExpense;
+    statementEnding = cb.cashOnHand;
+  }
+
   const periodLabel = (startVal || endVal)
     ? `${startVal ? formatDisplayDate(startVal) : 'Beginning'} to ${endVal ? formatDisplayDate(endVal) : 'Present'}`
     : "All Recorded Transactions";
 
-  const incomeRows = Object.keys(incomeByCategory).sort().map(c => {
-    const displayCat = c === "Year Levels Payment" ? "All Year Levels Payment" : c;
-    return `<div class="statement-row"><span>${esc(displayCat)}</span><span>${peso(incomeByCategory[c])}</span></div>`;
-  }).join("") || '<p class="note">No receipts recorded for this period.</p>';
+  const incomeRows = (() => {
+    const rows = Object.keys(incomeByCategory).sort().map(c => {
+      const displayCat = c === "Year Levels Payment" ? "All Year Levels Payment" : c;
+      return `<div class="statement-row"><span>${esc(displayCat)}</span><span>${peso(incomeByCategory[c])}</span></div>`;
+    });
+    if (!startVal && !endVal && typeof getCollectionRemittanceTotals === 'function') {
+      const pending = getCollectionRemittanceTotals().remainingCollected;
+      if (pending > 0) {
+        rows.push(`<div class="statement-row"><span>Collections Not Yet Remitted</span><span>${peso(pending)}</span></div>`);
+      }
+    }
+    return rows.join("") || '<p class="note">No receipts recorded for this period.</p>';
+  })();
 
   const expenseRows = Object.keys(expenseByCategory).sort().map(c =>
     `<div class="statement-row"><span>${esc(c)}</span><span>${peso(expenseByCategory[c])}</span></div>`
@@ -5398,23 +5458,23 @@ async function exportStatementImage() {
       </div>
 
       <div style="display:flex; justify-content:space-between; padding:8px 0; font-size:14px; font-family:'IBM Plex Mono',monospace; border-top:1px solid #ddd; margin-top:2px; padding-top:10px; font-weight:600;">
-        <span>Beginning Cash Balance</span><b>${peso(beginningBalance)}</b>
+        <span>Beginning Cash Balance</span><b>${peso(statementBeginning)}</b>
       </div>
 
       <h4 style="margin-top:20px; font-size:13px; font-weight:bold; color:#163F2D;">Receipts</h4>
       ${incomeRows}
       <div style="display:flex; justify-content:space-between; padding:8px 0; font-size:14px; font-family:'IBM Plex Mono',monospace; border-top:1px solid #ddd; margin-top:2px; padding-top:10px; font-weight:600;">
-        <span>Total Receipts</span><b style="color:#2F7D53;">${peso(totalReceipts)}</b>
+        <span>Total Receipts</span><b style="color:#2F7D53;">${peso(statementReceipts)}</b>
       </div>
 
       <h4 style="margin-top:20px; font-size:13px; font-weight:bold; color:#163F2D;">Disbursements</h4>
       ${expenseRows}
       <div style="display:flex; justify-content:space-between; padding:8px 0; font-size:14px; font-family:'IBM Plex Mono',monospace; border-top:1px solid #ddd; margin-top:2px; padding-top:10px; font-weight:600;">
-        <span>Total Disbursements</span><b style="color:#B3423B;">${peso(totalDisbursements)}</b>
+        <span>Total Disbursements</span><b style="color:#B3423B;">${peso(statementDisbursements)}</b>
       </div>
 
       <div style="display:flex; justify-content:space-between; padding:8px 0; font-size:15px; font-family:'IBM Plex Mono',monospace; border-top:2px solid #1F5D42; margin-top:12px; padding-top:12px; font-weight:700;">
-        <span>Ending Cash Balance</span><b>${peso(endingBalance)}</b>
+        <span>Ending Cash Balance</span><b>${peso(statementEnding)}</b>
       </div>
 
       <div style="display:flex; justify-content:space-between; margin-top:32px; gap:16px; text-align:center;">
@@ -5793,8 +5853,8 @@ window.addEventListener("DOMContentLoaded", () => {
   checkMode();          // <-- NEW: mode must be checked first
   if (!getMode()) return; // Don't render until mode is chosen
 
-  /* 🔗 ADD THIS LINE TO SET A DEFAULT HOME TAB (e.g., Summary or Add) */
-  switchTab('summary-section', document.getElementById('nav-summary'));
+  /* 🔗 DEFAULT HOME TAB: open on Records, not Backup */
+  switchTab('inventory-section', document.getElementById('nav-inventory'));
 
   renderStudents();
   renderCategories();
@@ -6504,8 +6564,7 @@ function renderEveSummary() {
   html += `<div class="eve-summary-card"><h4>Total Collected</h4><p style="color:var(--success);">${peso(totalCollectedAfterRemittance)}</p></div>`;
   html += `<div class="eve-summary-card"><h4>Total Balance</h4><p style="color:var(--danger);">${peso(unpaidBalance)}</p></div>`;
   if (mode === "org" && typeof computeCashbookTotals === 'function') {
-    const cb = computeCashbookTotals();
-    html += `<div class="eve-summary-card display-only"><h4>Cash Book Balance</h4><p style="color:${cb.cashOnHand < 0 ? 'var(--danger)' : 'var(--ink, #1F2A24)'};">${peso(cb.cashOnHand)}</p></div>`;
+    html += `<div class="eve-summary-card"><h4>Expected Amount</h4><p>${peso(totalDue)}</p></div>`;
     html += `<div class="eve-summary-card"><h4>Active Projects</h4><p>${db.projects.length}</p></div>`;
   } else if (mode === "class") {
     const classRecords = Object.values(db.categories || {}).flatMap(category => Array.isArray(category.records) ? category.records : []);
@@ -7711,12 +7770,13 @@ function saveCollectionRemittanceData() {
     if (totalCollectedAmount > 0) {
       const transactionId = "REM-LOG-" + Date.now() + "-" + Math.floor(Math.random() * 1000);
 
+      // Changed category from "Year-Level Remittance Logs" to "Year-Level Remitted"
       db.cashbook.transactions.push({
         id: transactionId,
         type: "remittance",              
         date: selectedDate, 
         orNumber: "",
-        category: "Year-Level Remittance Logs", 
+        category: "Year-Level Remitted", 
         description: `Remittance from ${categoryName} — Turnover of all collected funds`, 
         amount: totalCollectedAmount,
         projectId: null,
@@ -7728,7 +7788,10 @@ function saveCollectionRemittanceData() {
   else if (selectedStatus !== "remitted" && catObj.remittanceStatus === "remitted") {
     if (db.cashbook && Array.isArray(db.cashbook.transactions)) {
       db.cashbook.transactions = db.cashbook.transactions.filter(t => {
-        const isRemitLog = t.type === "remittance" || t.category === "Year-Level Remittance Logs";
+        // Extended criteria to successfully drop both legacy and newly saved "Year-Level Remitted" logs
+        const isRemitLog = t.type === "remittance" || 
+                           t.category === "Year-Level Remittance Logs" || 
+                           t.category === "Year-Level Remitted";
         const isMatchDesc = t.description && t.description.includes(`Remittance from ${categoryName} — Turnover`);
         return !(isRemitLog && isMatchDesc);
       });
@@ -7752,6 +7815,7 @@ function saveCollectionRemittanceData() {
   if (typeof renderCashbookLog === "function") renderCashbookLog(); 
   if (typeof renderEveSummary === "function") renderEveSummary();
 }
+
 
 
 
