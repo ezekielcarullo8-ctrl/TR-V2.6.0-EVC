@@ -8213,6 +8213,199 @@ window.createNewNoteFlow = function () {
 
 
 /* =========================================================================
+   QUICK DELETE — one shared modal, two uses
+   -------------------------------------------------------------------------
+   openQuickDeleteModal('collections')  -> Records tab: delete many collections
+   openQuickDeleteModal('students')     -> Year Level tab: delete many
+                                           year levels / students from the
+                                           permanent database
+   The modal lets you search, tick several items (or Select All), then press
+   Delete Selected. The button asks for a second tap to confirm, so it works
+   in the Android app without relying on the phone's confirm() popup.
+   One batch = one saveData(), so a single Undo (↺) restores everything.
+   ========================================================================= */
+const QUICK_DELETE_MODES = {
+  collections: {
+    title: () => "Quick Delete Collections",
+    desc: () => "Tick the collections to remove. Their payment records and linked Cashbook transactions and transfers are deleted too.",
+    getItems: () => Object.keys(db.categories || {})
+      .sort((a, b) => a.localeCompare(b))
+      .map(name => {
+        const n = ((db.categories[name] || {}).records || []).length;
+        return { id: name, label: name, sub: n + (n === 1 ? " record" : " records") };
+      }),
+    remove: (ids) => {
+      ids.forEach(cat => {
+        if (db.cashbook && Array.isArray(db.cashbook.transactions)) {
+          db.cashbook.transactions = db.cashbook.transactions.filter(t => {
+            const matchCategory = String(t.category).toLowerCase() === String(cat).toLowerCase();
+            const matchDescription = t.description && t.description.includes(cat);
+            return !(matchCategory || matchDescription);
+          });
+        }
+        if (Array.isArray(db.transfers)) db.transfers = db.transfers.filter(t => t.from !== cat && t.to !== cat);
+        delete db.categories[cat];
+      });
+    },
+    refresh: () => {
+      renderCategories();
+      renderCashbookSummary();
+      renderCashbookList();
+      renderSummary();
+      if (typeof renderCashbookLog === "function") renderCashbookLog();
+      if (typeof generateStatement === "function") generateStatement();
+    },
+    noun: (n) => n === 1 ? "collection" : "collections"
+  },
+  students: {
+    title: () => "Quick Delete " + lbl("Year Levels"),
+    desc: () => "Tick the " + lbl("year levels").toLowerCase() + " to remove from the database. They are also removed from every collection.",
+    getItems: () => [...(db.students || [])]
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .map(st => {
+        const sub = isOrg() ? (() => { const c = getYearLevelStudentCount(st); return c + (c === 1 ? " student" : " students"); })() : "";
+        return { id: st.name, label: st.name, sub };
+      }),
+    remove: (ids) => {
+      const gone = new Set(ids);
+      Object.keys(db.categories || {}).forEach(cat => {
+        db.categories[cat].records = (db.categories[cat].records || []).filter(r => !gone.has(r.name));
+      });
+      db.students = db.students.filter(st => !gone.has(st.name));
+    },
+    refresh: () => {
+      renderStudents();
+      renderSummary();
+      if (typeof renderCategories === "function") renderCategories();
+      if (isClass() && typeof renderClassFund === "function") renderClassFund();
+    },
+    noun: (n) => (n === 1 ? lbl("year level") : lbl("year levels")).toLowerCase()
+  }
+};
+
+let quickDeleteMode = null;
+let quickDeleteSelected = new Set();
+let quickDeleteArmed = false;
+let quickDeleteArmTimer = null;
+
+function openQuickDeleteModal(mode) {
+  const cfg = QUICK_DELETE_MODES[mode];
+  const modal = document.getElementById("quick-delete-modal");
+  if (!cfg || !modal) return;
+  quickDeleteMode = mode;
+  quickDeleteSelected = new Set();
+  resetQuickDeleteArm();
+  document.getElementById("qd-title").innerText = cfg.title();
+  document.getElementById("qd-desc").innerText = cfg.desc();
+  document.getElementById("qd-search").value = "";
+  modal.classList.remove("hidden");
+  renderQuickDeleteList();
+}
+
+function closeQuickDeleteModal() {
+  document.getElementById("quick-delete-modal")?.classList.add("hidden");
+  quickDeleteMode = null;
+  quickDeleteSelected = new Set();
+  resetQuickDeleteArm();
+}
+
+function resetQuickDeleteArm() {
+  quickDeleteArmed = false;
+  clearTimeout(quickDeleteArmTimer);
+  const btn = document.getElementById("qd-delete-btn");
+  if (btn) btn.classList.remove("qd-armed");
+}
+
+function getQuickDeleteVisibleItems() {
+  const cfg = QUICK_DELETE_MODES[quickDeleteMode];
+  if (!cfg) return [];
+  const term = (document.getElementById("qd-search")?.value || "").trim().toLowerCase();
+  return cfg.getItems().filter(item => !term || item.label.toLowerCase().includes(term));
+}
+
+function renderQuickDeleteList() {
+  const list = document.getElementById("qd-list");
+  const cfg = QUICK_DELETE_MODES[quickDeleteMode];
+  if (!list || !cfg) return;
+
+  // Forget selections for items that no longer exist
+  const allIds = new Set(cfg.getItems().map(i => i.id));
+  quickDeleteSelected.forEach(id => { if (!allIds.has(id)) quickDeleteSelected.delete(id); });
+
+  const items = getQuickDeleteVisibleItems();
+  if (items.length === 0) {
+    list.innerHTML = `<div class="qd-empty">${allIds.size === 0 ? "Nothing to delete yet." : "No matches."}</div>`;
+  } else {
+    list.innerHTML = items.map(item => {
+      const checked = quickDeleteSelected.has(item.id);
+      return `<label class="qd-row${checked ? " selected" : ""}">
+        <input type="checkbox" data-qd-id="${esc(item.id)}"${checked ? " checked" : ""}>
+        <span class="qd-name">${esc(item.label)}</span>
+        ${item.sub ? `<span class="qd-sub">${esc(item.sub)}</span>` : ""}
+      </label>`;
+    }).join("");
+    list.querySelectorAll("input[data-qd-id]").forEach(cb => {
+      cb.addEventListener("change", () => {
+        const id = cb.getAttribute("data-qd-id");
+        if (cb.checked) quickDeleteSelected.add(id); else quickDeleteSelected.delete(id);
+        cb.closest(".qd-row")?.classList.toggle("selected", cb.checked);
+        resetQuickDeleteArm();
+        updateQuickDeleteFooter();
+      });
+    });
+  }
+  updateQuickDeleteFooter();
+}
+
+function updateQuickDeleteFooter() {
+  const cfg = QUICK_DELETE_MODES[quickDeleteMode];
+  const btn = document.getElementById("qd-delete-btn");
+  const status = document.getElementById("qd-status");
+  if (!cfg || !btn || !status) return;
+  const n = quickDeleteSelected.size;
+  btn.disabled = n === 0;
+  btn.innerText = quickDeleteArmed ? `Tap again to delete ${n}` : (n ? `Delete Selected (${n})` : "Delete Selected");
+  status.innerText = n ? `${n} ${cfg.noun(n)} selected` : "";
+}
+
+function quickDeleteSelectAll() {
+  getQuickDeleteVisibleItems().forEach(item => quickDeleteSelected.add(item.id));
+  resetQuickDeleteArm();
+  renderQuickDeleteList();
+}
+
+function quickDeleteDeselectAll() {
+  quickDeleteSelected.clear();
+  resetQuickDeleteArm();
+  renderQuickDeleteList();
+}
+
+function quickDeleteConfirm() {
+  const cfg = QUICK_DELETE_MODES[quickDeleteMode];
+  const btn = document.getElementById("qd-delete-btn");
+  if (!cfg || quickDeleteSelected.size === 0) return;
+
+  // First tap arms the button, second tap (within 4s) performs the delete
+  if (!quickDeleteArmed) {
+    quickDeleteArmed = true;
+    btn?.classList.add("qd-armed");
+    updateQuickDeleteFooter();
+    clearTimeout(quickDeleteArmTimer);
+    quickDeleteArmTimer = setTimeout(() => { resetQuickDeleteArm(); updateQuickDeleteFooter(); }, 4000);
+    return;
+  }
+
+  const ids = Array.from(quickDeleteSelected);
+  cfg.remove(ids);
+  saveData();          // single save => one Undo restores the whole batch
+  cfg.refresh();
+  const msg = `Deleted ${ids.length} ${cfg.noun(ids.length)}. Tap ↺ Undo if that was a mistake.`;
+  closeQuickDeleteModal();
+  if (typeof window.eveAlert === "function") window.eveAlert(msg);
+}
+
+
+/* =========================================================================
    PHONE BACK BUTTON / SWIPE-BACK SUPPORT
    -------------------------------------------------------------------------
    Makes the phone's system Back button and the edge-swipe back gesture step
@@ -8258,7 +8451,8 @@ window.createNewNoteFlow = function () {
     "eve-calc-overlay": "closeEveCalcModal",
     "eve-notes-overlay": "closeEveNotesModal",
     "remit-manager-modal": "closeRemitManagerModal",
-    "mode-switch-confirm-modal": "closeSwitchModeConfirm"
+    "mode-switch-confirm-modal": "closeSwitchModeConfirm",
+    "quick-delete-modal": "closeQuickDeleteModal"
   };
 
   const $ = id => document.getElementById(id);
