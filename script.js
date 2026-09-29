@@ -8213,9 +8213,11 @@ window.createNewNoteFlow = function () {
 
 
 /* =========================================================================
-   QUICK DELETE — one shared modal, two uses
+   QUICK DELETE — one shared modal, three uses
    -------------------------------------------------------------------------
    openQuickDeleteModal('collections')  -> Records tab: delete many collections
+   openQuickDeleteModal('records')      -> inside a collection: remove many
+                                           students from that collection
    openQuickDeleteModal('students')     -> Year Level tab: delete many
                                            year levels / students from the
                                            permanent database
@@ -8225,6 +8227,28 @@ window.createNewNoteFlow = function () {
    One batch = one saveData(), so a single Undo (↺) restores everything.
    ========================================================================= */
 const QUICK_DELETE_MODES = {
+  records: {
+    title: () => "Quick Delete " + lbl("Year Levels"),
+    desc: () => "Tick the " + lbl("year levels").toLowerCase() + " to remove from \"" + (currentCategory || "this collection") + "\". Their payment history in this collection is removed too; they stay in the database.",
+    getItems: () => (((db.categories || {})[currentCategory] || {}).records || [])
+      .map(rec => {
+        const bal = round2((Number(rec.due) || 0) - (Number(rec.paid) || 0));
+        return { id: rec.name, label: rec.name, sub: bal <= 0 ? "Paid" : "Bal " + peso(bal) };
+      })
+      .sort((a, b) => a.label.localeCompare(b.label)),
+    remove: (ids) => {
+      const gone = new Set(ids);
+      const cat = db.categories[currentCategory];
+      if (cat) cat.records = (cat.records || []).filter(r => !gone.has(r.name));
+      editingIndex = null;
+    },
+    refresh: () => {
+      renderItemList();
+      renderSummary();
+      if (typeof renderCategories === "function") renderCategories();
+    },
+    noun: (n) => (n === 1 ? lbl("year level") : lbl("year levels")).toLowerCase()
+  },
   collections: {
     title: () => "Quick Delete Collections",
     desc: () => "Tick the collections to remove. Their payment records and linked Cashbook transactions and transfers are deleted too.",
