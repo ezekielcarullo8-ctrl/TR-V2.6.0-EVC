@@ -4000,3 +4000,276 @@ body.mode-class #add-year-filter {
 .btn-save-check:active {
   transform: scale(0.95); /* Subtle click feedback shrink */
 }
+
+
+/* Contextual feature-help light bulbs */
+.tip-bulb,
+.tip-bulb-row {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto !important;
+  width: 30px !important;
+  min-width: 30px !important;
+  height: 30px !important;
+  min-height: 30px !important;
+  margin: 0 0 0 7px !important;
+  padding: 0 !important;
+  border: 1px solid rgba(246, 193, 67, .8) !important;
+  border-radius: 50% !important;
+  background: linear-gradient(145deg, #fff9d9, #f6c143) !important;
+  color: #765100 !important;
+  box-shadow: 0 2px 7px rgba(166, 116, 0, .22) !important;
+  font-size: 15px !important;
+  line-height: 1 !important;
+  vertical-align: middle;
+  cursor: pointer;
+  transition: transform .15s ease, box-shadow .15s ease;
+}
+.tip-bulb:hover,
+.tip-bulb:focus-visible,
+.tip-bulb-row:hover,
+.tip-bulb-row:focus-visible {
+  transform: translateY(-1px) scale(1.06);
+  box-shadow: 0 4px 11px rgba(166, 116, 0, .32) !important;
+  outline: 2px solid var(--accent-2);
+  outline-offset: 2px;
+}
+h3 .tip-bulb,
+h4 .tip-bulb { margin-left: 6px !important; }
+.inline-tip-bulb {
+  width: 24px !important;
+  min-width: 24px !important;
+  height: 24px !important;
+  min-height: 24px !important;
+  margin-left: 6px !important;
+  font-size: 13px !important;
+  vertical-align: -4px;
+}
+.tip-bulb-row {
+  width: 34px !important;
+  min-width: 34px !important;
+  height: 46px !important;
+  min-height: 46px !important;
+  margin-left: 0 !important;
+}
+[role="button"].tip-bulb { user-select: none; }
+
+
+/* Refined contextual info controls and readable Eve tip placement */
+.tip-bulb,
+.tip-bulb-row {
+  background: #d9dde1 !important;
+  border: 1px solid #aeb5bc !important;
+  color: #26313a !important;
+  font-size: 19px !important;
+  font-weight: 900 !important;
+  font-family: Arial, sans-serif !important;
+  box-shadow: 0 2px 5px rgba(32, 42, 50, .2) !important;
+  text-transform: lowercase;
+}
+h3:has(.tip-bulb),
+h4:has(.tip-bulb) {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+h3:has(.tip-bulb) > .tip-bulb,
+h4:has(.tip-bulb) > .tip-bulb {
+  margin-left: auto !important;
+}
+.inline-tip-bulb {
+  width: 25px !important;
+  min-width: 25px !important;
+  height: 25px !important;
+  min-height: 25px !important;
+  font-size: 17px !important;
+  font-weight: 900 !important;
+  margin-left: auto !important;
+  vertical-align: middle !important;
+}
+.tip-bulb-row { margin-left: auto !important; }
+
+.eve-bot .speech-bubble {
+  top: auto !important;
+  left: auto !important;
+  right: 0 !important;
+  bottom: calc(100% + 18px) !important;
+  width: min(390px, calc(100vw - 28px)) !important;
+  min-width: 0 !important;
+  max-width: min(390px, calc(100vw - 28px)) !important;
+  padding: 16px 18px 14px !important;
+  line-height: 1.55 !important;
+  font-size: 14px !important;
+  box-sizing: border-box !important;
+  transform: translateY(8px) scale(.96) !important;
+}
+.eve-bot .speech-bubble.show,
+.eve-bot .eve-silenced .speech-bubble.show {
+  transform: translateY(0) scale(1) !important;
+}
+.eve-bot .speech-bubble::after {
+  left: auto !important;
+  right: 18px !important;
+  transform: none !important;
+}
+@media (max-width: 560px) {
+  .eve-bot .speech-bubble {
+    right: -6px !important;
+    width: calc(100vw - 28px) !important;
+    max-width: calc(100vw - 28px) !important;
+    font-size: 13.5px !important;
+  }
+}
+
+/* Keep the wider tip bubble to Eve's right instead of clipping it to the left. */
+.eve-bot .speech-bubble {
+  left: calc(100% + 12px) !important;
+  right: auto !important;
+  width: min(360px, calc(100vw - 84px)) !important;
+  max-width: min(360px, calc(100vw - 84px)) !important;
+  bottom: calc(100% + 22px) !important;
+  transform: translateY(8px) scale(.96) !important;
+}
+.eve-bot .speech-bubble.show {
+  transform: translateY(0) scale(1) !important;
+}
+.eve-bot .speech-bubble::after {
+  left: 18px !important;
+  right: auto !important;
+}
+@media (max-width: 560px) {
+  .eve-bot .speech-bubble {
+    left: calc(100% + 10px) !important;
+    width: calc(100vw - 84px) !important;
+    max-width: calc(100vw - 84px) !important;
+    padding: 14px 15px 13px !important;
+  }
+}
+
+
+/* Final info-button finish: circular, bold, softly translucent, right aligned. */
+.tip-bulb,
+.tip-bulb-row {
+  border-radius: 999px !important;
+  opacity: .78;
+}
+.tip-bulb:hover,
+.tip-bulb:focus-visible,
+.tip-bulb-row:hover,
+.tip-bulb-row:focus-visible {
+  opacity: .96;
+}
+.item-toolbar .collection-detail-tip {
+  margin-left: auto !important;
+  align-self: center;
+}
+
+/* Keep Eve's wider tip bubble clear of the right viewport edge on phones. */
+.eve-bot .speech-bubble {
+  left: calc(100% + 4px) !important;
+}
+@media (max-width: 560px) {
+  .eve-bot .speech-bubble {
+    left: calc(100% - 2px) !important;
+    right: auto !important;
+  }
+}
+
+
+/* Final Eve tip placement: left-aligned, slightly narrower, and taller. */
+.eve-bot .speech-bubble {
+  left: -4px !important;
+  right: auto !important;
+  width: min(320px, calc(100vw - 40px)) !important;
+  max-width: min(320px, calc(100vw - 40px)) !important;
+  min-height: 96px !important;
+  padding: 18px 17px 16px !important;
+  bottom: calc(100% + 24px) !important;
+}
+.eve-bot .speech-bubble::after {
+  left: 28px !important;
+  right: auto !important;
+}
+.item-header .collection-detail-tip {
+  margin-left: auto !important;
+  font-weight: 400 !important;
+}
+@media (max-width: 560px) {
+  .eve-bot .speech-bubble {
+    left: -2px !important;
+    width: calc(100vw - 40px) !important;
+    max-width: calc(100vw - 40px) !important;
+    min-height: 102px !important;
+    padding: 16px 15px 15px !important;
+  }
+}
+
+
+/* Make every contextual info control match the collection-detail i button. */
+.tip-bulb,
+.tip-bulb-row,
+.inline-tip-bulb {
+  width: 28px !important;
+  min-width: 28px !important;
+  height: 28px !important;
+  min-height: 28px !important;
+  border-radius: 999px !important;
+  background: #d9dde1 !important;
+  border: 1px solid #aeb5bc !important;
+  color: #26313a !important;
+  opacity: .78 !important;
+  font-family: Arial, sans-serif !important;
+  font-size: 17px !important;
+  font-weight: 400 !important;
+  line-height: 1 !important;
+  box-shadow: 0 2px 5px rgba(32, 42, 50, .2) !important;
+}
+.tip-bulb:hover,
+.tip-bulb:focus-visible,
+.tip-bulb-row:hover,
+.tip-bulb-row:focus-visible,
+.inline-tip-bulb:hover,
+.inline-tip-bulb:focus-visible {
+  opacity: .96 !important;
+}
+.item-header .collection-detail-tip,
+.item-toolbar .collection-detail-tip {
+  font-weight: 400 !important;
+}
+.student-note-tip { margin-left: 6px !important; vertical-align: middle !important; }
+
+
+/* Aligns section headers to the far right and levels the info button */
+h3:has(.tip-bulb), h4:has(.tip-bulb) {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  width: 100% !important;
+}
+
+/* Forces the i button to float to the very top right edge */
+h3 > .tip-bulb, h4 > .tip-bulb,
+h3 > .inline-tip-bulb, h4 > .inline-tip-bulb {
+  margin-left: auto !important;
+  margin-right: 0 !important;
+  flex-shrink: 0 !important;
+}
+
+/* 1. Make the database view container the anchor point */
+#database-section, .page {
+  position: relative !important;
+}
+
+/* 2. Force the info button to float to the absolute top-right of the page */
+#database-section .tip-bulb,
+#database-section .inline-tip-bulb,
+#database-section [onclick*="showFeatureTip"] {
+  position: absolute !important;
+  top: 12px !important;  /* Controls vertical alignment with the header text */
+  right: 4px !important;  /* Flushes it to the far right edge */
+  margin: 0 !important;
+  z-index: 9999 !important;
+}
+
+
