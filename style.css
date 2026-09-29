@@ -4272,68 +4272,48 @@ h3 > .inline-tip-bulb, h4 > .inline-tip-bulb {
   z-index: 9999 !important;
 }
 
-/* Center the collection title text */
-#item-view-title {
+
+
+
+/* =========================================================================
+   EVE SPEECH BUBBLE — shrink-wrap to the text (no empty gap on short text)
+   Uses width:max-content so the bubble is as wide as its text (up to a cap),
+   instead of being squeezed by Eve's narrow container. Words wrap only at
+   spaces, never in the middle of a word.
+   ========================================================================= */
+.eve-bot .speech-bubble {
+  width: max-content !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  height: auto !important;
+  max-width: min(300px, calc(100vw - 40px)) !important;
+  padding: 10px 14px !important;
+  line-height: 1.4 !important;
   text-align: center;
-  flex: 1;
-  margin-left: 40px;  /* Safe gap away from the back button */
-  margin-right: 40px; /* Safe gap away from the info button */
-  display: block;
-  position: relative;
+  box-sizing: border-box !important;
 }
-
-/* Center the decorative line underneath the centered title text */
-#item-view-title::after {
-  content: '';
-  position: absolute;
-  bottom: 0;
-  left: 50%;
-  transform: translateX(-50%); /* Shifts the line perfectly to the middle */
-  width: 32px;
-  height: 2.5px;
-  background: linear-gradient(90deg, var(--accent), var(--accent-2));
-  border-radius: 2px;
-}
-
-/* Ensure the header distributes space correctly */
-.item-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  width: 100%;
-}
-
-/* Keeps the top-right action button cleanly aligned with the cards container */
-.item-header + .item-toolbar + .row + div {
-  margin-top: 4px;
-}
-
-/* Increase the size of the close button while keeping it locked in the top right corner */
-#quick-delete-modal .close-btn {
-  position: absolute !important;
-  top: 14px !important;       /* Positions it neatly near the top edge */
-  right: 16px !important;     /* Flushes it securely to the right edge */
-  font-size: 26px !important;  /* Makes the '×' symbol noticeably larger and easier to see */
-  width: 36px !important;     /* Expands the square touch target bounding box */
-  height: 36px !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  background: none !important;
-  border: none !important;
-  color: var(--muted, #6E7A72) !important;
-  cursor: pointer !important;
-  line-height: 1 !important;
+.eve-bot .speech-bubble .eve-msg {
   margin: 0 !important;
   padding: 0 !important;
-  z-index: 100 !important;    /* Keeps it safely layered above headers */
-  transition: color 0.15s ease, transform 0.15s ease !important;
+  white-space: normal;
+  word-break: normal !important;
+  overflow-wrap: break-word !important;
+  hyphens: none !important;
 }
-
-/* Add an active hover interaction feedback */
-#quick-delete-modal .close-btn:hover {
-  color: var(--danger, #b3423b) !important;
-  transform: scale(1.08);     /* Gentle expansion feedback on cursor focus */
+.eve-bot .speech-bubble .eve-actions:empty {
+  display: none !important;
+  margin: 0 !important;
+}
+.eve-bot .speech-bubble .eve-actions:not(:empty) {
+  margin-top: 8px !important;
+}
+@media (max-width: 560px) {
+  .eve-bot .speech-bubble {
+    width: max-content !important;
+    min-height: 0 !important;
+    max-width: calc(100vw - 40px) !important;
+    padding: 9px 13px !important;
+  }
 }
 
 /* Align all top bar elements horizontally in a single row */
