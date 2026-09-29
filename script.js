@@ -3711,7 +3711,24 @@ function openCollectionEdit(index) {
   }
   if (rosterBox) rosterBox.classList.toggle("hidden", !orgEditing);
   
-  // ── FIXED: ORG MODE TERMINOLOGY RE-LABELLING OVERRIDES ──
+  // ─── ADDED: CRITICAL TRANSACTION CONFLICT WARNING ───
+  // Looks for an existing warning block or creates a new one to prevent duplication
+  let warningEl = document.getElementById("collection-edit-conflict-warning");
+  if (!warningEl) {
+    warningEl = document.createElement("div");
+    warningEl.id = "collection-edit-conflict-warning";
+    warningEl.style.cssText = "background: rgba(179, 66, 59, 0.08); border: 1.5px dashed var(--danger, #b3423b); border-radius: 8px; padding: 12px; margin-bottom: 16px; color: var(--danger, #b3423b); font-size: 13px; font-weight: 500; line-height: 1.4; text-align: left;";
+    
+    // Injects it smoothly right at the top of the content area below the header name
+    const nameHeader = document.getElementById("collection-edit-student-name");
+    if (nameHeader && nameHeader.parentNode) {
+      nameHeader.parentNode.insertBefore(warningEl, nameHeader.nextSibling);
+    }
+  }
+  warningEl.innerHTML = "⚠️ <b>Important Note:</b> Do not change the amount due and record a payment at the same time, for it will cause an overpaid calculation error.";
+  // ───────────────────────────────────────────────────
+
+  // ── ORG MODE TERMINOLOGY RE-LABELLING OVERRIDES ──
   const addPaymentHeader = document.getElementById("collection-edit-pay-label") || 
                            document.querySelector("#collection-edit-modal label[for='collection-edit-pay']") ||
                            document.querySelector("#collection-edit-modal .form-box h4") ||
@@ -3742,7 +3759,6 @@ function openCollectionEdit(index) {
   if (historyHeader) {
     historyHeader.innerHTML = orgEditing ? "<b>Remittance History</b>" : "<b>Payment History</b>";
   }
-  // ────────────────────────────────────────────────────────
 
   const payDate = document.getElementById("collection-edit-date");
   const payAmount = document.getElementById("collection-edit-pay");
@@ -3758,6 +3774,7 @@ function openCollectionEdit(index) {
   document.getElementById("collection-edit-modal").classList.remove("hidden");
   updateRecordRosterIndicator();
 }
+
 
 
 function setCollectionEditMethod(method) {
