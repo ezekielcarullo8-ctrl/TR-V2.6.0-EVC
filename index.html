@@ -119,8 +119,6 @@
       <div class="toggle-group">
       <div class="settings-dropdown" id="settings-dropdown">
         <button id="settings-toggle" class="icon-toggle" onclick="toggleSettingsMenu(event)" title="Settings">⚙️</button>
-        <button id="calc-toggle" class="icon-toggle" onclick="openCalcModal(); closeSettingsMenu();" title="Calculator">📱</button>
-        
         <div id="settings-menu" class="settings-menu hidden">
           <div class="settings-menu-item">
             
@@ -137,8 +135,11 @@
             <button id="notes-toggle" class="icon-toggle" onclick="openNotesModal(); closeSettingsMenu();" title="Notes">📝</button>
           <span class="settings-menu-text">Notepad</span>
           </div>
-          
-          
+          <div class="settings-menu-item">
+            
+            <button id="calc-toggle" class="icon-toggle" onclick="openCalcModal(); closeSettingsMenu();" title="Calculator">📱</button>
+          <span class="settings-menu-text">Calculator</span>
+          </div>
         </div>
       </div>
     </div>
@@ -280,62 +281,59 @@
     </div>
   </div>
 
+  <!-- QUICK PAY MODAL -->
+  <div id="quick-pay-modal" class="activation-overlay hidden">
+    <div class="activation-card" style="max-width: 520px; width: 100%; padding: 28px 24px;">
+      <div class="item-header" style="border:none; padding-bottom:10px; margin-bottom:6px;">
+        <h3 style="margin-bottom:0; padding-bottom:0;">Quick Pay</h3>
+        <button onclick="closeQuickPayModal()" style="width:auto; height:auto; padding:8px 16px; font-size:13px;">✕ Close</button>
+      </div>
+      <p class="note" style="margin-bottom:14px;">Record the same payment for multiple <span id="quick-pay-noun">year levels</span> in <b id="quick-pay-cat-label">this collection</b> at once.</p>
 
-<!-- QUICK PAY MODAL -->
-<div id="quick-pay-modal" class="activation-overlay hidden">
-  <div class="activation-card" style="max-width: 520px; width: 100%; padding: 28px 24px;">
-    <div class="item-header" style="border:none; padding-bottom:10px; margin-bottom:6px;">
-      <h3 style="margin-bottom:0; padding-bottom:0;">Quick Pay</h3>
-      <button onclick="closeQuickPayModal()" style="width:auto; height:auto; padding:8px 16px; font-size:13px;">✕ Close</button>
+      <div class="row" style="margin-bottom:10px;">
+        <input type="date" id="quick-pay-modal-date">
+        <input type="number" id="quick-pay-modal-amount" placeholder="Amount per student" step="0.01">
+      </div>
+      <div class="row" style="margin-bottom:10px;">
+        <input type="text" id="quick-pay-modal-note" placeholder="Note (optional)">
+      </div>
+
+      <div class="row" style="margin-bottom:10px; gap:8px;">
+        <input type="text" id="quick-pay-search" placeholder="Search..." oninput="renderQuickPayList()" style="flex:1; margin-bottom:0;">
+        <button onclick="selectAllQuickPay()" style="width:auto; padding:0 16px; white-space:nowrap;">Select All</button>
+        <button onclick="deselectAllQuickPay()" style="width:auto; padding:0 16px; white-space:nowrap; background:var(--surface); color:var(--ink); border:1.5px solid var(--hairline);">Deselect All</button>
+      </div>
+      <div id="quick-pay-list" style="max-height: 45vh; overflow-y: auto; margin-bottom: 18px; padding-right: 4px;"></div>
+      <div class="row" style="margin-bottom:0; gap:12px;">
+        <button class="full-btn" onclick="confirmQuickPayModal()" style="flex:1; margin-top:0;">Record Payment</button>
+        <button class="full-btn btn-cancel" onclick="closeQuickPayModal()" style="flex:1; margin-top:0;">Cancel</button>
+      </div>
+      <p class="note" id="quick-pay-status" style="margin-top:12px; text-align:center; font-weight:600;"></p>
     </div>
-    <p class="note" style="margin-bottom:14px;">Record the same payment for multiple <span id="quick-pay-noun">year levels</span> in <b id="quick-pay-cat-label">this collection</b> at once.</p>
+  </div>
 
-    <!-- Top Layout: Date and Amount Fields -->
-    <div class="row" style="margin-bottom:10px; display: flex; gap: 10px; width: 100%;">
-      <input type="date" id="quick-pay-modal-date" style="flex: 1;">
-      <input type="number" id="quick-pay-modal-amount" placeholder="Amount per student" step="0.01" style="flex: 1;">
-    </div>
 
-    <!-- Middle Layout Row: Note Field & Side-by-Side Payment Toggles -->
-    <div class="row" style="margin-bottom:10px; display: flex; gap: 10px; width: 100%; align-items: center;">
-      <input type="text" id="quick-pay-modal-note" placeholder="Payment note (optional)" style="flex: 1; margin-bottom: 0;">
-      
-      <!-- NATIVE DATA STATE TRACKER FOR SCRIPT LOGS -->
-      <input type="hidden" id="quick-pay-method-value" value="cash">
-
-      <!-- Interactive Horizontal Button Grid Wrapper -->
-      <div class="payment-method-toggle" id="quick-pay-method-toggle" style="display: flex; gap: 6px; flex: 0 0 auto;">
-        <button type="button" class="method-btn active" data-method="cash" onclick="setQuickPayModalMethod('cash')" style="width: auto; padding: 13px 16px; font-weight: 700; border-radius: var(--radius-sm); cursor: pointer; white-space: nowrap; height: 52px; display: flex; align-items: center; gap: 4px; margin: 0;">
-          💵 Cash
-        </button>
-        <button type="button" class="method-btn" data-method="gcash" onclick="setQuickPayModalMethod('gcash')" style="width: auto; padding: 13px 16px; font-weight: 700; border-radius: var(--radius-sm); cursor: pointer; white-space: nowrap; height: 52px; display: flex; align-items: center; gap: 4px; margin: 0;">
-          📱 GCash
-        </button>
+  <!-- QUICK DELETE MODAL (shared: collections list + year-level database) -->
+  <div id="quick-delete-modal" class="activation-overlay hidden">
+    <div class="activation-card qd-card">
+      <div class="item-header" style="border:none; padding-bottom:10px; margin-bottom:6px;">
+        <h3 id="qd-title" style="margin-bottom:0; padding-bottom:0;">Quick Delete</h3>
+        <button type="button" onclick="closeQuickDeleteModal()" style="width:auto; height:auto; padding:8px 16px; font-size:13px;">✕ Close</button>
+      </div>
+      <p class="note" id="qd-desc" style="margin-bottom:12px;"></p>
+      <div class="row" style="margin-bottom:10px; gap:8px;">
+        <input type="text" id="qd-search" placeholder="Search..." oninput="renderQuickDeleteList()" style="flex:1; margin-bottom:0;">
+        <button type="button" onclick="quickDeleteSelectAll()" style="width:auto; padding:0 14px; white-space:nowrap;">Select All</button>
+        <button type="button" onclick="quickDeleteDeselectAll()" style="width:auto; padding:0 14px; white-space:nowrap; background:var(--surface); color:var(--ink); border:1.5px solid var(--hairline);">Clear</button>
+      </div>
+      <div id="qd-list" class="qd-list"></div>
+      <p class="note" id="qd-status" style="margin:10px 0 0; text-align:center; font-weight:600;"></p>
+      <div class="row" style="margin:14px 0 0; gap:12px;">
+        <button type="button" id="qd-delete-btn" class="full-btn danger-btn" onclick="quickDeleteConfirm()" style="flex:1; margin-top:0;" disabled>Delete Selected</button>
+        <button type="button" class="full-btn btn-cancel" onclick="closeQuickDeleteModal()" style="flex:1; margin-top:0;">Cancel</button>
       </div>
     </div>
-
-    <!-- Search Toolbar Layout Row -->
-    <div class="row" style="margin-bottom:10px; gap:8px; display: flex; width: 100%;">
-      <input type="text" id="quick-pay-search" placeholder="Search student." oninput="renderQuickPayList()" style="flex:1; margin-bottom:0;">
-      <button onclick="selectAllQuickPay()" style="width:auto; padding:0 16px; white-space:nowrap; height: 52px;">Select All</button>
-      <button onclick="deselectAllQuickPay()" style="width:auto; padding:0 16px; white-space:nowrap; background:var(--surface); color:var(--ink); border:1.5px solid var(--hairline); height: 52px;">Deselect All</button>
-    </div>
-
-    <!-- Checklists results rendering box container -->
-    <div id="quick-pay-list" style="max-height: 45vh; overflow-y: auto; margin-bottom: 18px; padding-right: 4px;"></div>
-    
-    <div class="row" style="margin-bottom:0; gap:12px; display: flex; width: 100%;">
-      <button class="full-btn" onclick="confirmQuickPayModal()" style="flex:1; margin-top:0;">Confirm Payment</button>
-      <button class="full-btn btn-cancel" onclick="closeQuickPayModal()" style="flex:1; margin-top:0;">Cancel</button>
-    </div>
-    <p class="note" id="quick-pay-status" style="margin-top:12px; text-align:center; font-weight:600;"></p>
   </div>
-</div>
-
-
-
-
-
 
   <!-- RENAME COLLECTION MODAL -->
   <div id="rename-modal" class="activation-overlay hidden">
@@ -368,14 +366,9 @@
 
         <!-- In DATABASE tab, replace the second h3: -->
   <h3 id="db-list-header">Student Database <button class="tip-bulb" onclick="showFeatureTip('students-list')" title="Student database tip">i</button></h3>
-        <!-- Add this wrapper block directly above your student cards list box -->
-<div style="display: flex; justify-content: flex-end; margin-bottom: 12px; padding: 0 4px; position: relative; margin-top: -12px; z-index: 10;">
-  <button type="button" class="del-btn" onclick="openDatabaseQuickDeleteModal()" style="width: auto; height: 36px; padding: 0 14px; border-radius: var(--radius-sm); font-size: 12.5px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; background: rgba(179, 66, 59, 0.06); border: 1px solid rgba(179, 66, 59, 0.2);">
-    🗑️ Quick Delete
-  </button>
-</div>
-  <p class="note" id="student-count">0 program year level in the database</p>
+        <p class="note" id="student-count">0 program year level in the database</p>
         <p class="note">Tap a program year level to view their balance across all collections <span class="tip-bulb inline-tip-bulb student-note-tip" role="button" tabindex="0" onclick="event.stopPropagation(); showFeatureTip('students-list')" title="Student database tip">i</span></p>
+        <button type="button" class="quick-delete-btn" id="qd-students-btn" onclick="openQuickDeleteModal('students')">🗑 Quick Delete</button>
         <input type="text" id="search-students-db" placeholder="Search Year Level..." oninput="renderStudents()">
         <div id="student-db-list"></div>
       </div>
@@ -408,6 +401,7 @@
         <hr class="section-divider">
 
         <h3>Collections A-Z <button class="tip-bulb" onclick="showFeatureTip('records-list')" title="Collections A-Z tip">i</button></h3>
+        <button type="button" class="quick-delete-btn" onclick="openQuickDeleteModal('collections')">🗑 Quick Delete Collections</button>
         <p class="note" style="margin: -4px 0 10px 0;">💡 Tip: Tap the red circle to change a collection's status to remitted. Tap the collection card to see its details.</p>
         <div class="inventory-wrapper">
           <div id="category-list" class="category-scroll"></div>
@@ -456,56 +450,10 @@
         </div>
         <div class="inside-box-full">
           <p class="note">Tap program year level to add a payment or edit</p>
-          <!-- Place this wrapper right below the filters row, directly above your student list container -->
-<div style="display: flex; justify-content: flex-end; margin-bottom: 10px; padding: 0 4px;">
-  <button type="button" class="del-btn class-only-filter" onclick="openQuickDeleteModal()" style="width: auto; height: 36px; padding: 0 14px; border-radius: var(--radius-sm); font-size: 12.5px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; background: rgba(179, 66, 59, 0.06); border: 1px solid rgba(179, 66, 59, 0.2);">
-    🗑️ Quick Delete
-  </button>
-</div>
-
-
           <div id="item-list"></div>
         </div>
       </div>
     </div>
-
-    <!-- Quick Delete Modal Screen Overlay Layer -->
-<div id="quick-delete-modal" class="modal-overlay">
-  <div class="modal-content" style="max-width: 440px; background: var(--surface); border-radius: 16px; padding: 24px; position: relative; box-shadow: var(--shadow-lg);">
-    <!-- Top-corner exit button using your native font engine configurations -->
-    <button type="button" class="close-btn" onclick="closeQuickDeleteModal()">×</button>
-    
-    <h3 style="color: var(--danger); font-family: 'Fraunces', serif; display: flex; align-items: center; gap: 8px;">
-      🗑️ Quick Delete Roster
-    </h3>
-    <p class="note" style="margin-bottom: 14px; text-align: left;">
-      Select which student cards to drop from <b id="quick-del-cat-label" style="color: var(--ink);"></b> permanently. They will remain safe inside your master database.
-    </p>
-    
-    <!-- Search Filter input field framework row alignment context -->
-    <div class="row" style="margin-bottom: 12px; width: 100%;">
-      <input type="text" id="quick-delete-search" oninput="renderQuickDeleteList()" placeholder="Search names inside this roster..." style="height: 44px; width: 100%;">
-    </div>
-    
-    <!-- Action buttons row using native themes -->
-    <div class="row" style="gap: 10px; margin-bottom: 14px; display: flex;">
-      <button type="button" onclick="selectAllQuickDelete()" style="height: 38px; font-size: 12px; background: var(--surface-alt); color: var(--ink); border: 1px solid var(--hairline-strong); width: auto; flex: 1; border-radius: var(--radius-sm);">Select All</button>
-      <button type="button" onclick="deselectAllQuickDelete()" style="height: 38px; font-size: 12px; background: var(--surface-alt); color: var(--ink); border: 1px solid var(--hairline-strong); width: auto; flex: 1; border-radius: var(--radius-sm);">Deselect All</button>
-    </div>
-
-    <!-- Scroller element container where checkboxes compile dynamically -->
-    <div id="quick-delete-list" style="max-height: 240px; overflow-y: auto; margin-bottom: 16px; padding-right: 4px; display: flex; flex-direction: column; gap: 6px;"></div>
-    
-    <!-- Dynamic status tracking descriptor string row labels panel -->
-    <div id="quick-delete-status" class="note" style="text-align: center; margin-bottom: 14px; font-weight: 600;"></div>
-    
-    <!-- Master solid deletion execution trigger button -->
-    <button type="button" onclick="confirmQuickDeleteModal()" style="background: linear-gradient(135deg, var(--danger), #8f332d); width: 100%; color: #fff; border: none; font-weight: 600; height: 48px; border-radius: var(--radius-sm); cursor: pointer; font-size: 14px; letter-spacing: 0.3px;">
-      Remove Selected Accounts
-    </button>
-  </div>
-</div>
-
 
     <!-- CASHBOOK SECTION (organization-wide income & expense ledger) -->
     <div id="cashbook-section" class="page hidden">
@@ -518,8 +466,8 @@
         <hr class="section-divider">
 
         <div class="row">
-          <button onclick="openOpeningBalanceModal()" style="flex:1;">💰 Set Opening Balance </button>
-          <button onclick="showProjectsView()" style="flex:1;">📁 Projects &amp; Events </button>
+          <button onclick="openOpeningBalanceModal()" style="flex:1;">💰 Set Opening Balance <span class="tip-bulb inline-tip-bulb" role="button" tabindex="0" onclick="event.stopPropagation(); showFeatureTip('cashbook-opening')" title="Opening balance tip">i</span></button>
+          <button onclick="showProjectsView()" style="flex:1;">📁 Projects &amp; Events <span class="tip-bulb inline-tip-bulb" role="button" tabindex="0" onclick="event.stopPropagation(); showFeatureTip('projects')" title="Projects and events tip">i</span></button>
         </div>
 
 
@@ -760,6 +708,8 @@
         <p class="note" id="cf-week-info" style="text-align:center; margin-top:8px; font-weight:600;"></p>
       </div>
 
+      <!-- Summary Cards -->
+      <div id="classfund-summary" class="summary-grid"></div>
 
       <!-- Missed Payment Alert -->
       <div id="cf-missed-alert"></div>
