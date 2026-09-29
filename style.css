@@ -4272,4 +4272,110 @@ h3 > .inline-tip-bulb, h4 > .inline-tip-bulb {
   z-index: 9999 !important;
 }
 
+/* Center the collection title text */
+#item-view-title {
+  text-align: center;
+  flex: 1;
+  margin-left: 40px;  /* Safe gap away from the back button */
+  margin-right: 40px; /* Safe gap away from the info button */
+  display: block;
+  position: relative;
+}
 
+/* Center the decorative line underneath the centered title text */
+#item-view-title::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%); /* Shifts the line perfectly to the middle */
+  width: 32px;
+  height: 2.5px;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  border-radius: 2px;
+}
+
+/* Ensure the header distributes space correctly */
+.item-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+/* Keeps the top-right action button cleanly aligned with the cards container */
+.item-header + .item-toolbar + .row + div {
+  margin-top: 4px;
+}
+
+/* Increase the size of the close button while keeping it locked in the top right corner */
+#quick-delete-modal .close-btn {
+  position: absolute !important;
+  top: 14px !important;       /* Positions it neatly near the top edge */
+  right: 16px !important;     /* Flushes it securely to the right edge */
+  font-size: 26px !important;  /* Makes the '×' symbol noticeably larger and easier to see */
+  width: 36px !important;     /* Expands the square touch target bounding box */
+  height: 36px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background: none !important;
+  border: none !important;
+  color: var(--muted, #6E7A72) !important;
+  cursor: pointer !important;
+  line-height: 1 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  z-index: 100 !important;    /* Keeps it safely layered above headers */
+  transition: color 0.15s ease, transform 0.15s ease !important;
+}
+
+/* Add an active hover interaction feedback */
+#quick-delete-modal .close-btn:hover {
+  color: var(--danger, #b3423b) !important;
+  transform: scale(1.08);     /* Gentle expansion feedback on cursor focus */
+}
+
+/* Align all top bar elements horizontally in a single row */
+.right-group {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  gap: 8px !important;
+  flex-wrap: nowrap !important; /* Prevents vertical breaking or stacking */
+}
+
+/* Ensure the layout wrapper container maintains internal row properties */
+.top-bar {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+}
+
+/* Force specific structural containers to flow horizontally */
+.toggle-group {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 8px !important;
+}
+
+/* Keep the circular utility buttons inline without forcing carriage line drops */
+.icon-toggle,
+.settings-dropdown {
+  display: inline-block !important;
+  margin: 0 !important;       /* Strips any vertical block margins */
+  flex-shrink: 0 !important;   /* Prevents round button borders from flattening */
+}
+
+button[onclick*="openCalcModal"] {
+  margin-right: 20px !important; /* Forces breathing room on its right */
+  margin-left: 9px !important;  /* Forces breathing room on its left */
+}
+
+/* Ensure the parent block doesn't compress or squash our new gaps */
+.right-group {
+  gap: 16px !important; /* Opens up the general spacing between all top bar icons */
+}
