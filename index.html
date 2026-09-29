@@ -334,17 +334,17 @@
 
       <div id="student-list-view">
         <!-- In DATABASE tab, replace the first h3: -->
-  <h3 id="db-add-header">Add Program & Year Level (Permanent)</h3>
+  <h3 id="db-add-header">Add Program &amp; Year Level (Permanent) <button class="tip-bulb" onclick="showFeatureTip('students-add')" title="How to add students">i</button></h3>
         <input type="text" id="new-student-name" placeholder="e.g BSIT 2, BSIT 3">
         <p class="note" style="margin: -4px 0 10px 0;">💡 Tip: separate multiple names with commas to add several at once.</p>
-        <button class="full-btn" onclick="addStudent()">Add Year Level</button>
+        <button class="full-btn" onclick="addStudent()">Add Year Level <span class="tip-bulb inline-tip-bulb" role="button" tabindex="0" onclick="event.stopPropagation(); showFeatureTip('students-add')" title="Add Year Level tip">i</span></button>
 
         <hr class="section-divider">
 
         <!-- In DATABASE tab, replace the second h3: -->
-  <h3 id="db-list-header">Student Database</h3>
+  <h3 id="db-list-header">Student Database <button class="tip-bulb" onclick="showFeatureTip('students-list')" title="Student database tip">i</button></h3>
         <p class="note" id="student-count">0 program year level in the database</p>
-        <p class="note">Tap a program year level to view their balance across all collections</p>
+        <p class="note">Tap a program year level to view their balance across all collections <span class="tip-bulb inline-tip-bulb student-note-tip" role="button" tabindex="0" onclick="event.stopPropagation(); showFeatureTip('students-list')" title="Student database tip">i</span></p>
         <input type="text" id="search-students-db" placeholder="Search Year Level..." oninput="renderStudents()">
         <div id="student-db-list"></div>
       </div>
@@ -355,9 +355,9 @@
           <h3 id="profile-student-name">STUDENT NAME</h3>
           <div></div>
         </div>
-        <h3>Breakdown By Collection</h3>
+        <h3>Breakdown By Collection <button class="tip-bulb" onclick="showFeatureTip('students-breakdown')" title="Balance breakdown tip">i</button></h3>
         <div id="profile-breakdown"></div>
-        <button id="org-roster-open-button" class="full-btn" onclick="openOrgRosterFullscreen()">Open Students Database</button>
+        <button id="org-roster-open-button" class="full-btn" onclick="openOrgRosterFullscreen()">Open Students Database <span class="tip-bulb inline-tip-bulb" role="button" tabindex="0" onclick="event.stopPropagation(); showFeatureTip('students-roster')" title="Student roster tip">i</span></button>
       </div>
 
     </div>
@@ -366,7 +366,7 @@
     <div id="inventory-section" class="page hidden">
       <div id="category-view">
         <div id="add-category-box" class="payment-box">
-      <h3>Add Collection Category</h3>
+      <h3>Add Collection Category <button class="tip-bulb" onclick="showFeatureTip('records-add')" title="How to add a collection">i</button></h3>
       <div class="row">
         <input type="text" id="new-category" placeholder="e.g. Newsette Fee">
         <input type="number" id="new-category-due" placeholder="Amount per Student" step="0.01">
@@ -376,7 +376,7 @@
 
         <hr class="section-divider">
 
-        <h3>Collections A-Z</h3>
+        <h3>Collections A-Z <button class="tip-bulb" onclick="showFeatureTip('records-list')" title="Collections A-Z tip">i</button></h3>
         <p class="note" style="margin: -4px 0 10px 0;">💡 Tip: Tap the red circle to change a collection's status to remitted. Tap the collection card to see its details.</p>
         <div class="inventory-wrapper">
           <div id="category-list" class="category-scroll"></div>
@@ -388,7 +388,7 @@
         <div class="item-header">
           <button onclick="backToCategories()">← Back</button>
           <h3 id="item-view-title">COLLECTION NAME</h3>
-          <div></div>
+          <button class="tip-bulb collection-detail-tip" onclick="showFeatureTip('collection-details')" title="Collection details tip">i</button>
         </div>
         <div class="item-toolbar">
           <!-- In INVENTORY/Records tab, inside item-toolbar: -->
@@ -435,13 +435,14 @@
 
       <div id="cashbook-main-view">
 
+        <h3>Cashbook Overview <button class="tip-bulb" onclick="showFeatureTip('cashbook-summary')" title="Cashbook overview tip">i</button></h3>
         <div id="cashbook-summary" class="summary-grid"></div>
 
         <hr class="section-divider">
 
         <div class="row">
-          <button onclick="openOpeningBalanceModal()" style="flex:1;">💰 Set Opening Balance</button>
-          <button onclick="showProjectsView()" style="flex:1;">📁 Projects &amp; Events</button>
+          <button onclick="openOpeningBalanceModal()" style="flex:1;">💰 Set Opening Balance <span class="tip-bulb inline-tip-bulb" role="button" tabindex="0" onclick="event.stopPropagation(); showFeatureTip('cashbook-opening')" title="Opening balance tip">i</span></button>
+          <button onclick="showProjectsView()" style="flex:1;">📁 Projects &amp; Events <span class="tip-bulb inline-tip-bulb" role="button" tabindex="0" onclick="event.stopPropagation(); showFeatureTip('projects')" title="Projects and events tip">i</span></button>
         </div>
 
 
@@ -451,13 +452,13 @@
 <!-- =========================================================================
    COLLAPSIBLE TRANSACTION LOGS ACCORDION PANEL GROUP
 ========================================================================= -->
-<div class="cf-student-card auto-close-dropdown-scope" style="padding: 0; margin-top: 14px; margin-bottom: 18px; border-radius: var(--radius);">
+<div id="transaction-logs-card" class="cf-student-card auto-close-dropdown-scope" style="padding: 0; margin-top: 14px; margin-bottom: 18px; border-radius: var(--radius);">
   
   <!-- Main Primary Parent Action Row Toggle Button -->
   <button type="button" class="cf-big-button" onclick="document.getElementById('transaction-logs-dropdown-content').classList.toggle('hidden')" style="border: none; margin-bottom: 0; width: 100%;">
     <span style="display: flex; align-items: center;">
       <span class="cf-btn-icon" style="margin-right: 12px; font-size: 20px;">📜</span>
-      <span style="color: var(--ink); font-weight: 600;">Transaction Logs</span>
+      <span style="color: var(--ink); font-weight: 600;">Transaction Logs <span class="tip-bulb inline-tip-bulb" role="button" tabindex="0" onclick="event.stopPropagation(); showFeatureTip('transaction-logs')" title="Transaction logs tip">i</span></span>
     </span>
     <span class="cf-btn-arrow" style="color: var(--muted); font-size: 14px; font-family: monospace;">▼</span>
   </button>
@@ -499,13 +500,13 @@
 <!-- =========================================================================
    COMPACT MASTER REPORT ENGINE ACCORDION GROUP
 ========================================================================= -->
-<div class="cf-student-card auto-close-dropdown-scope" style="padding: 0; margin-top: 14px; margin-bottom: 18px; border-radius: var(--radius); width: 100%; box-sizing: border-box;">
+<div id="generate-statement-card" class="cf-student-card auto-close-dropdown-scope" style="padding: 0; margin-top: 14px; margin-bottom: 18px; border-radius: var(--radius); width: 100%; box-sizing: border-box;">
   
   <!-- Main Primary Parent Action Row Toggle Button -->
   <button type="button" class="cf-big-button" onclick="document.getElementById('generate-statement-dropdown-content').classList.toggle('hidden')" style="border: none; margin-bottom: 0; width: 100%;">
     <span style="display: flex; align-items: center;">
       <span class="cf-btn-icon" style="margin-right: 12px; font-size: 20px;">📜</span>
-      <span style="color: var(--ink); font-weight: 600;">Generate Statement</span>
+      <span style="color: var(--ink); font-weight: 600;">Generate Statement <span class="tip-bulb inline-tip-bulb" role="button" tabindex="0" onclick="event.stopPropagation(); showFeatureTip('statement')" title="Statement tip">i</span></span>
     </span>
     <span class="cf-btn-arrow" style="color: var(--muted); font-size: 14px; font-family: monospace;">▼</span>
   </button>
@@ -584,7 +585,7 @@
    CASHBOOK TRANSACTION RECORD FORM ROW STACK
 ========================================================================= -->
 <div class="cashbook-record-box">
-  <h4 id="txn-form-title">Record Transaction</h4>
+  <h4 id="txn-form-title">Record Transaction <button class="tip-bulb" onclick="showFeatureTip('transaction')" title="Record transaction tip">i</button></h4>
   
   <input type="hidden" id="txn-edit-id" value="">
   <input type="hidden" id="txn-type" value="income">
@@ -639,7 +640,7 @@
       <div id="projects-view" class="hidden">
         <div class="item-header">
           <button onclick="hideProjectsView()">← Back</button>
-          <h3>Projects &amp; Events</h3>
+          <h3>Projects &amp; Events <button class="tip-bulb" onclick="showFeatureTip('projects')" title="Projects and events tip">i</button></h3>
           <div></div>
         </div>
         <p class="note" style="margin-bottom:14px;">Track a budget per event or project (e.g. Foundation Week, Outreach Program) and see income raised vs. what was actually spent.</p>
@@ -666,7 +667,7 @@
       <!-- CLASS FUND SECTION (Class Mode Only) -->
       <div id="classfund-section" class="page hidden">
       <p class="eyebrow" style="text-align:left; margin-bottom:6px;">Weekly Collection</p>
-      <h3>Class Fund Tracker</h3>
+      <h3>Class Fund Tracker <button class="tip-bulb" onclick="showFeatureTip('classfund-settings')" title="Class Fund setup tip">i</button></h3>
       <p class="note" style="margin-bottom:16px;">
         Track weekly class fund collections per student. Set your weekly amount and collection start date, then record payments. 
         Students must be added in the <b>Students</b> tab first.
@@ -705,7 +706,7 @@
   <button type="button" class="cf-big-button" onclick="openCfStudentsOverlay()" style="margin-bottom: 0; width: 100%;">
     <span style="display: flex; align-items: center; gap: 10px;">
       <span class="cf-btn-icon">👥</span>
-      <span>Student Collections</span>
+      <span>Student Collections <span class="tip-bulb inline-tip-bulb" role="button" tabindex="0" onclick="event.stopPropagation(); showFeatureTip('student-collections')" title="Student collections tip">i</span></span>
     </span>
     <span class="cf-btn-arrow">→</span>
   </button>
@@ -714,7 +715,7 @@
   <button type="button" class="cf-big-button" onclick="openCfLedgerOverlay()" style="margin-bottom: 0; width: 100%;">
     <span style="display: flex; align-items: center; gap: 10px;">
       <span class="cf-btn-icon">📒</span>
-      <span>Class Fund Ledger</span>
+      <span>Class Fund Ledger <span class="tip-bulb inline-tip-bulb" role="button" tabindex="0" onclick="event.stopPropagation(); showFeatureTip('classfund-ledger')" title="Class Fund ledger tip">i</span></span>
     </span>
     <span class="cf-btn-arrow">→</span>
   </button>
@@ -823,6 +824,7 @@
 <!-- SUMMARY TAB (migrated from EVE's old "Data" button) -->
 <div id="eve-summary-tab-section" class="page hidden">
   <hr class="header-rule">
+  <h3>Summary Dashboard <button class="tip-bulb" onclick="showFeatureTip('summary')" title="Summary tip">i</button></h3>
   <div id="eve-summary-view"></div>
 </div>
 
@@ -836,7 +838,7 @@
 
   <!-- 2. Permanent Data Management & Backup Options Block -->
   <div class="cashbook-record-box" style="margin-top: 20px;">
-    <h3>Data Management & Backup Options</h3>
+    <h3>Data Management &amp; Backup Options <button class="tip-bulb" onclick="showFeatureTip('backup')" title="Backup tip">i</button></h3>
     <p class="note" id="backup-status">Checking backup states...</p>
     
     <button type="button" onclick="exportBackup()">💾 Export Backup (JSON)</button>
@@ -1107,7 +1109,7 @@
     <div class="fullscreen-panel">
       <div class="fullscreen-header">
         <button onclick="closeOrgRosterFullscreen()">← Close</button>
-        <h3 id="org-roster-title">Students Database</h3>
+        <h3 id="org-roster-title">Students Database <span class="tip-bulb inline-tip-bulb" role="button" tabindex="0" onclick="event.stopPropagation(); showFeatureTip('students-roster')" title="Student roster tip">i</span></h3>
         <div></div>
       </div>
       <div class="row">
