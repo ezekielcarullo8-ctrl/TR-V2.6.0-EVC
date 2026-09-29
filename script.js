@@ -6150,7 +6150,7 @@ function toggleEveIdle() {
   }
 }
 /* --- showMsg: displays alerts through EVE's bubble --- */
-function showMsg(msg, isError = false, reaction = 'lookup') {
+function showMsg(msg, isError = false, reaction = 'lookup', duration = 4000) {
   clearTimeout(idleCycleTimer);
   idleCycleTimer = null;
   lastBubbleShow = Date.now();
@@ -6165,7 +6165,7 @@ function showMsg(msg, isError = false, reaction = 'lookup') {
     else speechBubble.classList.remove('alert-active');
   }
   clearTimeout(bubbleTimer);
-  bubbleTimer = setTimeout(() => dismiss(), 4000);
+  bubbleTimer = setTimeout(() => dismiss(), Math.max(1000, Number(duration) || 4000));
 }
 
   /* --- eveAlert: replaces native eveAlert() --- */
@@ -6235,6 +6235,7 @@ function eveAlert(msg, isError = false) {
 
       window.EveAssistant = {
     show, next, dismiss, checkUrgent, toggleEveIdle, showMsg,
+    showTip: (msg) => showMsg(msg, false, 'lookup', 15000),
     react: (mode) => triggerJump(mode),   // ← this line
     act: (key) => { if (ACTIONS[key]) ACTIONS[key](); }
   };
@@ -8149,3 +8150,46 @@ window.createNewNoteFlow = function () {
     document.getElementById("note-editor-body").value = "";
   }
 };
+
+
+
+
+
+/* =========================================================================
+   CONTEXTUAL LIGHT-BULB HELP
+   Eve speaks only when the user asks for help on a specific feature.
+   ========================================================================= */
+(function initFeatureTips() {
+  const tips = {
+    "records-add": "Add Collection creates a new money-collection tracker. Enter a clear collection name (e.g. SSC Fee), then enter the amount expected from each student. Tap Add Collection to save it.",
+    "records-list": "Collections A-Z shows every collection you have created. Use the letter index to jump quickly, then tap a collection card to open its details. The red status circle is used when a collection has been remitted.",
+    "collection-details": "Inside a collection you can add all saved students, search names, filter payment status, record payments, use Quick Pay, rename the collection, and export its records as CSV.",
+    "students-add": "Add student or year-level names here once. Separate multiple names with commas, then tap Add Year Level. These permanent names can be reused in every new collection and in Class Fund.",
+    "students-list": "Student Database is your permanent list. Add student names first then search to look for the students' names, then tap a student or year level to view balances across collections. Keep this list updated before using Add All Students.",
+    "students-breakdown": "Breakdown By Collection shows how this student is doing in every collection: the amount due, payments already recorded, and any remaining balance. Use it to answer questions quickly.",
+    "students-roster": "Open Students Database to manage the detailed roster for this program or year level. Search names, add several names separated by commas, and keep the list accurate before recording payments.",
+    "cashbook-summary": "Cashbook Overview shows the live financial totals: opening balance, income, expenses, remittances, and cash on hand. These figures update whenever you save a transaction.",
+    "cashbook-opening": "Opening Balance is the cash already on hand before you began using this app. Enter that starting amount once; use zero when there was no starting cash.",
+    "projects": "Projects and Events help you track a separate budget, such as Student Week. Add a project name and optional budget, then link related cashbook transactions to it.",
+    "transaction": "Record every money movement here. Choose Income or Expense, select the date, enter a clear description and amount, optionally link a project, then tap Save Transaction.",
+    "transaction-logs": "Transaction Logs lets you review all income and expenses. Open a log to search entries, inspect details, edit or delete a transaction, and export the displayed log as CSV.",
+    "statement": "Generate Statement creates a formal report for a selected date range. Complete Organization Information first, choose the start and end dates, then generate or view the statement full screen.",
+    "classfund-settings": "Class Fund tracks a repeated weekly contribution per student. Enter the weekly due amount and the date tracking began, then tap Save Settings before enrolling students.",
+    "student-collections": "Student Collections shows each enrolled student’s expected amount, paid amount, missed weeks, and payment history. Tap a student card to expand it and record a payment.",
+    "classfund-ledger": "Class Fund Ledger is the complete money trail for the fund. Use its filters to view all entries, income only, or expenses only. Open an entry to review or manage it.",
+    "summary": "Summary is your quick dashboard. Compare what should have been collected with what was actually collected, review unpaid balances, and check remittance progress before reporting.",
+    "backup": "Backup protects your work. Export a JSON backup regularly, especially after collection days or before changing devices. Import that file to restore your records; Reset All Data permanently erases them."
+  };
+
+  window.showFeatureTip = function(key) {
+    const message = tips[key] || "Use this feature to record, organize, and review your treasurer records. Tap the light bulb beside any feature for a more specific explanation.";
+    
+    // 🌟 SAFELY USES NATIVE ENGINE WITH CURRENT SMILING POSTURE CONSTRAINTS
+    if (window.EveAssistant && typeof window.EveAssistant.showMsg === "function") {
+      window.EveAssistant.showMsg(message, false, 'smile', 12000); 
+    } else if (typeof eveAlert === "function") {
+      eveAlert(message);
+    }
+  };
+})();
+
