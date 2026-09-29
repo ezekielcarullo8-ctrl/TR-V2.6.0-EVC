@@ -30,6 +30,8 @@ jobs:
         npm init -y
         npm install @capacitor/core @capacitor/cli @capacitor/android
         npm install @capacitor/device @capacitor/filesystem @capacitor/share
+        # NEW: App plugin -> phone Back button / swipe-back + "press back again to exit"
+        npm install @capacitor/app
         npm install @capawesome/capacitor-screenshot
         npm install @capacitor/assets --save-dev
         echo "{\"appId\": \"com.treas_rec.v2_6_0_evc\", \"appName\": \"$APP_NAME\", \"webDir\": \"www\"}" > capacitor.config.json
