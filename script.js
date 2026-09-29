@@ -2491,45 +2491,31 @@ function closeCfLedgerOverlay() {
   }
 
   // ================= CATEGORY (COLLECTION) PICKER =================
-  function addCategory() {
-    const catInput = document.getElementById("new-category");
-    const dueInput = document.getElementById("new-category-due");
-    const cat = catInput.value.trim();
-    const due = round2(parseFloat(dueInput.value) || 0);
+function addCategory() {
+  const catInput = document.getElementById("new-category");
+  const dueInput = document.getElementById("new-category-due");
+  const cat = catInput.value.trim();
+  const due = round2(parseFloat(dueInput.value) || 0);
 
-    if (!cat) return eveAlert("Please enter a collection name (e.g. Newsette Fee)", true);
-    if (findCategoryKeyCI(cat)) return eveAlert("This collection already exists (names are not case-sensitive).", true);
-    if (due <= 0) return eveAlert("Please enter a valid amount per student", true);
+  if (!cat) return eveAlert("Please enter a collection name (e.g. Newsette Fee)", true);
+  if (findCategoryKeyCI(cat)) return eveAlert("This collection already exists (names are not case-sensitive).", true);
+  if (due <= 0) return eveAlert("Please enter a valid amount per student", true);
 
-    db.categories[cat] = { amountDue: due, records: [] };
-    catInput.value = "";
-    dueInput.value = "";
+  // Initialize the collection with an empty records array so no students are added yet
+  db.categories[cat] = { amountDue: due, records: [] };
+  
+  catInput.value = "";
+  dueInput.value = "";
 
-    // 🌟 Reuse whatever students/year levels are already saved on the
-    // Student Database (Year Level tab) — auto-populate every new
-    // collection with them so they don't need to be re-added manually.
-    const catObj = db.categories[cat];
-    const existingNames = getCollectionRecordNames(catObj);
-    getAddAllStudents().forEach(student => {
-      if (existingNames.has(student.name.toLowerCase())) return;
-      catObj.records.push({
-        name: student.name,
-        due: getYearLevelTotalDue(student, catObj.amountDue),
-        paid: 0,
-        history: [],
-        yearLevelId: student.id || null
-      });
-      existingNames.add(student.name.toLowerCase());
-    });
+  saveData();
+  
+  // Instantly redraw the Records Tab list view without a manual refresh
+  renderCategories();
+  
+  if (isOrg()) populateAddRemittanceForm();
+  eveAlert("Collection Added!");
+}
 
-    saveData();
-    
-    // 🌟 FIX: Instantly redraw the Records Tab list view without a manual refresh
-    renderCategories();
-    
-    if (isOrg()) populateAddRemittanceForm();
-    eveAlert("Collection Added!");
-  }
 
 
 function renameCategory() {
@@ -3208,49 +3194,40 @@ function deselectAllAddAll() {
     renderItemList();
   }
 
-function openQuickPayModal() {
-  const catObj = db.categories[currentCategory];
-  if (!catObj || catObj.records.length === 0) {
-    return eveAlert(`No ${lbl("year levels").toLowerCase()} in this collection yet. Add some first (or use "${lbl("Add All Year Level")}").`, true);
+function setQuickPayModalMethod(method) {
+  const hiddenInput = document.getElementById("quick-pay-method-value");
+  if (hiddenInput) hiddenInput.value = method;
+
+  const container = document.getElementById("quick-pay-method-toggle");
+  if (container) {
+    container.querySelectorAll(".method-btn").forEach(btn => {
+      const isTarget = btn.getAttribute("data-method") === method;
+      btn.classList.toggle("active", isTarget);
+      
+      if (isTarget) {
+        if (method === "cash") {
+          btn.style.background = "linear-gradient(135deg, var(--success), var(--accent))";
+          btn.style.borderColor = "transparent";
+          btn.style.color = "#fff";
+        } else {
+          btn.style.background = "linear-gradient(135deg, #0B57D0, #4C8DFF)"; // GCash Digital Blue Accent
+          btn.style.borderColor = "transparent";
+          btn.style.color = "#fff";
+        }
+      } else {
+        btn.style.background = "var(--surface-alt)";
+        btn.style.borderColor = "var(--hairline)";
+        btn.style.color = "var(--muted)";
+      }
+    });
   }
-
-  // FIXED: Overrides labels dynamically checking for Org Mode context bounds
-  const quickPayHeader = document.querySelector("#quick-pay-modal h3");
-  if (quickPayHeader) quickPayHeader.innerText = isOrg() ? "⚡ Quick Remittance Recorder" : "⚡ Quick Pay";
-
-  const searchInput = document.getElementById("quick-pay-search");
-  if (searchInput) searchInput.placeholder = isOrg() ? "Search Year Level..." : "Search student...";
-
-  const amountLabel = document.querySelector("#quick-pay-modal label[for='quick-pay-modal-amount']");
-  if (amountLabel) amountLabel.innerText = isOrg() ? "Remittance Amount per Year Level" : "Amount to Pay per Student";
-
-  const dateLabel = document.querySelector("#quick-pay-modal label[for='quick-pay-modal-date']");
-  if (dateLabel) dateLabel.innerText = isOrg() ? "Remittance Date" : "Payment Date";
-
-  const noteLabel = document.querySelector("#quick-pay-modal label[for='quick-pay-modal-note']");
-  if (noteLabel) noteLabel.innerText = isOrg() ? "Remittance Note / Details" : "Note (optional)";
-
-  const selectAllBtn = document.querySelector("#quick-pay-modal button[onclick='selectAllQuickPay()']");
-  if (selectAllBtn) selectAllBtn.innerText = isOrg() ? "Select All Year Levels" : "Select All";
-
-  const deselectAllBtn = document.querySelector("#quick-pay-modal button[onclick='deselectAllQuickPay()']");
-  if (deselectAllBtn) deselectAllBtn.innerText = isOrg() ? "Deselect All" : "Deselect All";
-
-  const confirmBtn = document.querySelector("#quick-pay-modal button[onclick='confirmQuickPayModal()']");
-  if (confirmBtn) confirmBtn.innerText = isOrg() ? "Record Batch Remittance" : "Confirm Payment";
-
-  document.getElementById("quick-pay-noun").innerText = lbl("year levels").toLowerCase();
-  document.getElementById("quick-pay-cat-label").innerText = currentCategory;
-  document.getElementById("quick-pay-modal-date").value = new Date().toISOString().slice(0, 10);
-  document.getElementById("quick-pay-modal-amount").value = "";
-  document.getElementById("quick-pay-modal-note").value = "";
-  document.getElementById("quick-pay-search").value = "";
-  document.getElementById("quick-pay-status").innerText = "";
-  
-  quickPaySelected.clear();
-  renderQuickPayList();
-  document.getElementById("quick-pay-modal").classList.remove("hidden");
 }
+
+
+
+
+
+
 
 
 function closeQuickPayModal() {
@@ -3320,6 +3297,51 @@ function toggleQuickPayCheckbox(name) {
   renderQuickPayList();
 }
 
+function openQuickPayModal() {
+  const catObj = db.categories[currentCategory];
+  if (!catObj || catObj.records.length === 0) {
+    return eveAlert(`No ${lbl("year levels").toLowerCase()} in this collection yet. Add some first (or use "${lbl("Add All Year Level")}").`, true);
+  }
+
+  // Header Title Update
+  const quickPayHeader = document.querySelector("#quick-pay-modal h3");
+  if (quickPayHeader) quickPayHeader.innerText = isOrg() ? "⚡ Quick Remittance Recorder" : "⚡ Quick Pay";
+
+  // Search input element placeholder update
+  const searchInput = document.getElementById("quick-pay-search");
+  if (searchInput) searchInput.placeholder = isOrg() ? "Search Year Level..." : "Search student...";
+
+  // 🛡️ SAFE OPTIONAL MODIFIERS: Keeps buttons from crashing if labels don't exist
+  const selectAllBtn = document.querySelector("#quick-pay-modal button[onclick='selectAllQuickPay()']");
+  if (selectAllBtn) selectAllBtn.innerText = isOrg() ? "Select All Year Levels" : "Select All";
+
+  const deselectAllBtn = document.querySelector("#quick-pay-modal button[onclick='deselectAllQuickPay()']");
+  if (deselectAllBtn) deselectAllBtn.innerText = isOrg() ? "Deselect All" : "Deselect All";
+
+  const confirmBtn = document.querySelector("#quick-pay-modal button[onclick='confirmQuickPayModal()']");
+  if (confirmBtn) confirmBtn.innerText = isOrg() ? "Record Batch Remittance" : "Confirm Payment";
+
+  // Clear data input fields safely
+  document.getElementById("quick-pay-noun").innerText = lbl("year levels").toLowerCase();
+  document.getElementById("quick-pay-cat-label").innerText = currentCategory;
+  document.getElementById("quick-pay-modal-date").value = new Date().toISOString().slice(0, 10);
+  document.getElementById("quick-pay-modal-amount").value = "";
+  document.getElementById("quick-pay-modal-note").value = "";
+  document.getElementById("quick-pay-search").value = "";
+  document.getElementById("quick-pay-status").innerText = "";
+  
+  // ⚡ Reset active selection state indicator back to cash defaults
+  if (typeof setQuickPayModalMethod === "function") {
+    setQuickPayModalMethod("cash");
+  }
+  
+  quickPaySelected.clear();
+  renderQuickPayList();
+  
+  // 🔓 REVEALS MODAL DRAWER OVERLAY
+  document.getElementById("quick-pay-modal").classList.remove("hidden");
+}
+
 function confirmQuickPayModal() {
   const catObj = db.categories[currentCategory];
   if (!catObj) return;
@@ -3333,11 +3355,14 @@ function confirmQuickPayModal() {
 
   const dateVal = document.getElementById("quick-pay-modal-date").value || new Date().toISOString().slice(0, 10);
   const note = document.getElementById("quick-pay-modal-note").value.trim();
+  
+  // ⚡ SCRAPE SELECTED VALUE FROM THE TOGGLE TRACKER INPUT [1]
+  const quickPayMethod = document.getElementById("quick-pay-method-value")?.value || "cash";
 
-  // FIXED: Dynamic structural text mapping constraints for absolute runtime tracking verification prompts
+  // Dynamic structural text mapping constraints for runtime validation checks [1]
   const trackingActionPromptText = isOrg() 
-    ? `Record a remittance entry of ${peso(amount)} for ${quickPaySelected.size} year level(s) inside "${currentCategory}"?`
-    : `Record a payment of ${peso(amount)} for ${quickPaySelected.size} student(s) in "${currentCategory}"?`;
+    ? `Record a remittance entry of ${peso(amount)} via ${quickPayMethod.toUpperCase()} for ${quickPaySelected.size} year level(s) inside "${currentCategory}"?`
+    : `Record a payment of ${peso(amount)} via ${quickPayMethod.toUpperCase()} for ${quickPaySelected.size} student(s) in "${currentCategory}"?`;
 
   if (!confirm(trackingActionPromptText)) return;
 
@@ -3349,11 +3374,20 @@ function confirmQuickPayModal() {
     const transactionId = "TX-QP-" + Date.now() + "-" + Math.random().toString(36).slice(2, 7);
 
     rec.paid = round2(rec.paid + amount);
-    rec.history.push({ id: transactionId, amount, date: dateVal, note: note || "Quick Remittance" });
+    
+    // Inject custom structural layout configurations [1]
+    if (!Array.isArray(rec.history)) rec.history = [];
+    rec.history.push({ 
+      id: transactionId, 
+      amount, 
+      date: dateVal, 
+      note: note || "Quick Remittance",
+      method: quickPayMethod 
+    });
     recorded++;
 
     if (isOrg()) {
-      // FIXED: Ensures batch quick records map safely down stream into the Cash Book as standard remittances
+      // Sync batch records straight downstream into general ledger as a remittance [1]
       db.cashbook.transactions.push({
         id: transactionId,
         type: "remittance",
@@ -3363,10 +3397,20 @@ function confirmQuickPayModal() {
         description: `Remittance from ${name} — ${currentCategory}`,
         amount,
         projectId: null,
-        notes: note || "Batch Quick Remittance"
+        notes: `${note || "Batch Quick Remittance"} (${quickPayMethod.toUpperCase()})`
       });
     } else {
-      db.cashbook.transactions.push({ id: transactionId, type: "income", date: dateVal, orNumber: "", category: "Year Levels Payment", description: `Payment from ${name} — ${currentCategory}`, amount, projectId: null, notes: note || "" });
+      db.cashbook.transactions.push({ 
+        id: transactionId, 
+        type: "income", 
+        date: dateVal, 
+        orNumber: "", 
+        category: "Year Levels Payment", 
+        description: `Payment from ${name} — ${currentCategory}`, 
+        amount, 
+        projectId: null, 
+        notes: `${note || ""} (${quickPayMethod.toUpperCase()})` 
+      });
     }
   });
 
@@ -3374,7 +3418,7 @@ function confirmQuickPayModal() {
   closeQuickPayModal();
   renderItemList();
   
-  // Refresh companion modules instantly to prevent visual updates delay blocks
+  // Re-calculate dashboard metrics instantly without page reload [1]
   renderCategories();
   renderCashbookSummary();
   renderCashbookList();
@@ -3387,6 +3431,7 @@ function confirmQuickPayModal() {
 
   eveAlert(successMessagePrompt);
 }
+
 
 
   async function exportCategoryCSV() {
@@ -4186,13 +4231,6 @@ function renderClassFund() {
     .filter(t => t.type === "expense")
     .reduce((s, t) => s + (Number(t.amount) || 0), 0));
   const netBalance = round2(totalPaid - totalExpenses);
-
-  summary.innerHTML = `
-    <div class="summary-card"><h4>Total Collected</h4><p style="color:var(--success)">${peso(totalPaid)}</p></div>
-    <div class="summary-card"><h4>Total Expenses</h4><p style="color:var(--danger)">${peso(totalExpenses)}</p></div>
-    <div class="summary-card"><h4>Net Balance</h4><p style="color:${netBalance < 0 ? 'var(--danger)' : 'var(--accent-dark)'}">${peso(netBalance)}</p></div>
-    <div class="summary-card"><h4>Enrolled</h4><p>${allStudents.length}</p></div>
-  `;
 
   if (missedCount > 0 && totalUnpaid > 0) {
     alertBox.innerHTML = `
@@ -8210,3 +8248,224 @@ window.createNewNoteFlow = function () {
   };
 })();
 
+
+// Memory block tracker configuration registry
+let quickDeleteSelected = new Set();
+let quickDeleteContextMode = "collection"; // Context Flag: "collection" or "database"
+
+/**
+ * Open Modal from the Collection / Records Tab View
+ */
+function openQuickDeleteModal() {
+  const catObj = db.categories[currentCategory];
+  if (!catObj || !catObj.records || catObj.records.length === 0) {
+    return eveAlert("This collection is already empty.", true);
+  }
+
+  quickDeleteContextMode = "collection"; // Set context path flag
+  _initSharedQuickDeleteOverlay(`Collection: ${currentCategory}`, "Select which student cards to drop from this collection permanently. Their master profiles are unaffected.");
+}
+
+/**
+ * Open Modal from the Student Master Database Tab View
+ */
+function openDatabaseQuickDeleteModal() {
+  if (!db.students || db.students.length === 0) {
+    return eveAlert("The master database is already empty.", true);
+  }
+
+  quickDeleteContextMode = "database"; // Set context path flag
+  _initSharedQuickDeleteOverlay("Master Database Roster", "Select profiles to drop from the master roster. <br><b style='color:var(--danger)'>⚠️ Critical Warning:</b> This will cascade and automatically clear them from ALL active collections across the entire app.");
+}
+
+/**
+ * Shared initialization helper to set labels and configure adaptive button handlers
+ */
+function _initSharedQuickDeleteOverlay(titleText, descriptionHtml) {
+  const modalOverlay = document.getElementById("quick-delete-modal");
+  if (!modalOverlay) return;
+
+  // Adapt the text strings dynamically based on which button called it
+  const titleEl = modalOverlay.querySelector("h3");
+  if (titleEl) titleEl.innerHTML = `🗑️ Quick Delete — ${titleText}`;
+
+  const descEl = modalOverlay.querySelector(".note");
+  if (descEl) descEl.innerHTML = descriptionHtml;
+
+  const searchEl = document.getElementById("quick-delete-search");
+  if (searchEl) searchEl.value = "";
+
+  const statusEl = document.getElementById("quick-delete-status");
+  if (statusEl) statusEl.innerText = "";
+
+  quickDeleteSelected.clear();
+  
+  // Compile the list view
+  renderQuickDeleteList();
+
+  // Route the form submission button to fire the correct final database operation handler function
+  const submitBtn = modalOverlay.querySelector("button[onclick*='confirm']");
+  if (submitBtn) {
+    if (quickDeleteContextMode === "database") {
+      submitBtn.setAttribute("onclick", "confirmDatabaseQuickDeleteAction()");
+      submitBtn.innerText = "Permanently Purge Selected Master Profiles";
+    } else {
+      submitBtn.setAttribute("onclick", "confirmCollectionQuickDeleteAction()");
+      submitBtn.innerText = "Remove Selected From Collection";
+    }
+  }
+
+  // Display the sheet fluidly
+  modalOverlay.classList.add("is-active");
+  document.body.style.overflow = "hidden";
+}
+
+/**
+ * Closes out the active overlay panel safely and resets state tracking flags.
+ */
+function closeQuickDeleteModal() {
+  const modalOverlay = document.getElementById("quick-delete-modal");
+  if (modalOverlay) {
+    modalOverlay.classList.remove("is-active");
+    document.body.style.overflow = ""; 
+  }
+  quickDeleteSelected.clear();
+}
+
+/**
+ * Dual-Mode List Parser loop builds layout checkboxes cleanly
+ */
+function renderQuickDeleteList() {
+  const searchInput = document.getElementById("quick-delete-search");
+  const searchTerm = searchInput ? searchInput.value.toLowerCase() : "";
+  const listContainer = document.getElementById("quick-delete-list");
+  if (!listContainer) return;
+
+  let rawDataSourceArray = [];
+
+  // Scrape the correct array based on context routing flags
+  if (quickDeleteContextMode === "database") {
+    rawDataSourceArray = db.students || [];
+  } else {
+    const catObj = db.categories[currentCategory];
+    rawDataSourceArray = catObj ? (catObj.records || []) : [];
+  }
+
+  const matches = rawDataSourceArray
+    .filter(r => r && r.name && r.name.toLowerCase().includes(searchTerm))
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  if (matches.length === 0) {
+    listContainer.innerHTML = `<p class="note" style="text-align:center; padding:16px;">No profiles found matching search queries.</p>`;
+    return;
+  }
+
+  listContainer.innerHTML = matches.map(r => `
+    <div class="add-all-item ${quickDeleteSelected.has(r.name) ? 'selected' : ''}" data-shared-del-name="${esc(r.name)}" style="padding: 11px 14px; margin-bottom: 0; display: flex; justify-content: space-between; align-items: center; border: 1px solid var(--hairline); border-radius: var(--radius-sm); cursor: pointer; background: var(--surface); text-align: left; box-sizing: border-box; width: 100%;">
+      <span style="font-weight:600; font-size:14px; color: var(--ink);">${esc(r.name)}</span>
+      <div class="check-indicator" style="color: var(--danger); background: rgba(179,66,59,0.1); border-color: var(--danger); width: 22px; height: 22px; font-size: 11px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-left: auto; flex-shrink: 0;">${quickDeleteSelected.has(r.name) ? '✓' : ''}</div>
+    </div>
+  `).join("");
+
+  listContainer.querySelectorAll('.add-all-item').forEach(el => {
+    el.addEventListener('click', () => {
+      const targetName = el.getAttribute('data-shared-del-name');
+      if (quickDeleteSelected.has(targetName)) {
+        quickDeleteSelected.delete(targetName);
+      } else {
+        quickDeleteSelected.add(targetName);
+      }
+      renderQuickDeleteList();
+    });
+  });
+
+  const statusEl = document.getElementById("quick-delete-status");
+  if (statusEl) {
+    if (quickDeleteSelected.size > 0) {
+      statusEl.innerText = `${quickDeleteSelected.size} account(s) marked for deletion`;
+      statusEl.style.color = "var(--danger)";
+    } else {
+      statusEl.innerText = "Tap card rows to select profiles";
+      statusEl.style.color = "var(--muted)";
+    }
+  }
+}
+
+// Map standard toggle helpers dynamically to adapt to search values
+function selectAllQuickDelete() {
+  const searchInput = document.getElementById("quick-delete-search");
+  const searchTerm = searchInput ? searchInput.value.toLowerCase() : "";
+  
+  let source = [];
+  if (quickDeleteContextMode === "database") {
+    source = db.students || [];
+  } else {
+    const catObj = db.categories[currentCategory];
+    source = catObj ? (catObj.records || []) : [];
+  }
+
+  source.filter(r => r.name.toLowerCase().includes(searchTerm)).forEach(r => quickDeleteSelected.add(r.name));
+  renderQuickDeleteList();
+}
+
+function deselectAllQuickDelete() {
+  quickDeleteSelected.clear();
+  renderQuickDeleteList();
+}
+
+/**
+ * SUBMISSION BRANCH A: Execution routine for standard Collection Deletion
+ */
+function confirmCollectionQuickDeleteAction() {
+  const catObj = db.categories[currentCategory];
+  if (!catObj || quickDeleteSelected.size === 0) return;
+
+  const targetsArray = Array.from(quickDeleteSelected);
+  if (!confirm(`Are you sure you want to drop these ${quickDeleteSelected.size} student record card layouts from "${currentCategory}"?\n\nThis completely clears their transaction history for this collection. Master profiles are unaffected.`)) return;
+
+  if (db.cashbook && Array.isArray(db.cashbook.transactions)) {
+    db.cashbook.transactions = db.cashbook.transactions.filter(t => {
+      const matchCollection = String(t.description).includes(currentCategory);
+      const matchStudentName = targetsArray.some(name => String(t.description).includes(name));
+      return !(matchCollection && matchStudentName);
+    });
+  }
+
+  catObj.records = catObj.records.filter(r => !quickDeleteSelected.has(r.name));
+  _finalizeSharedQuickDeleteExecution(`Successfully removed ${targetsArray.length} student records from collection.`);
+}
+
+/**
+ * SUBMISSION BRANCH B: Execution routine for cascade Master Database Purge
+ */
+function confirmDatabaseQuickDeleteAction() {
+  if (quickDeleteSelected.size === 0) return;
+
+  const targetsArray = Array.from(quickDeleteSelected);
+  if (!confirm(`⚠️ CRITICAL MASTER PURGE:\n\nYou have selected ${quickDeleteSelected.size} student profiles for absolute deletion.\n\nThis completely erases them from the Master Database, drops them from ALL active collections trackers, clears related ledger parameters, and deletes their Class Fund logs. This action is irreversible.`)) return;
+
+  Object.keys(db.categories).forEach(cat => {
+    db.categories[cat].records = db.categories[cat].records.filter(r => !quickDeleteSelected.has(r.name));
+  });
+
+  db.students = db.students.filter(s => !quickDeleteSelected.has(s.name));
+  _finalizeSharedQuickDeleteExecution(`Successfully executed cascade removal of ${targetsArray.length} master profiles from system memory.`);
+}
+
+/**
+ * Shared file writer commit cycle resets background layout totals cleanly
+ */
+function _finalizeSharedQuickDeleteExecution(successAlertMessage) {
+  saveData();
+  closeQuickDeleteModal();
+  
+  renderStudents();
+  renderCategories();
+  renderCashbookSummary();
+  renderCashbookList();
+  renderSummary();
+  if (typeof renderClassFund === "function") renderClassFund();
+  if (typeof renderItemList === "function") renderItemList();
+
+  eveAlert(successAlertMessage);
+}
