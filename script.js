@@ -2491,45 +2491,31 @@ function closeCfLedgerOverlay() {
   }
 
   // ================= CATEGORY (COLLECTION) PICKER =================
-  function addCategory() {
-    const catInput = document.getElementById("new-category");
-    const dueInput = document.getElementById("new-category-due");
-    const cat = catInput.value.trim();
-    const due = round2(parseFloat(dueInput.value) || 0);
+function addCategory() {
+  const catInput = document.getElementById("new-category");
+  const dueInput = document.getElementById("new-category-due");
+  const cat = catInput.value.trim();
+  const due = round2(parseFloat(dueInput.value) || 0);
 
-    if (!cat) return eveAlert("Please enter a collection name (e.g. Newsette Fee)", true);
-    if (findCategoryKeyCI(cat)) return eveAlert("This collection already exists (names are not case-sensitive).", true);
-    if (due <= 0) return eveAlert("Please enter a valid amount per student", true);
+  if (!cat) return eveAlert("Please enter a collection name (e.g. Newsette Fee)", true);
+  if (findCategoryKeyCI(cat)) return eveAlert("This collection already exists (names are not case-sensitive).", true);
+  if (due <= 0) return eveAlert("Please enter a valid amount per student", true);
 
-    db.categories[cat] = { amountDue: due, records: [] };
-    catInput.value = "";
-    dueInput.value = "";
+  // Initialize the collection with an empty records array so no students are added yet
+  db.categories[cat] = { amountDue: due, records: [] };
+  
+  catInput.value = "";
+  dueInput.value = "";
 
-    // 🌟 Reuse whatever students/year levels are already saved on the
-    // Student Database (Year Level tab) — auto-populate every new
-    // collection with them so they don't need to be re-added manually.
-    const catObj = db.categories[cat];
-    const existingNames = getCollectionRecordNames(catObj);
-    getAddAllStudents().forEach(student => {
-      if (existingNames.has(student.name.toLowerCase())) return;
-      catObj.records.push({
-        name: student.name,
-        due: getYearLevelTotalDue(student, catObj.amountDue),
-        paid: 0,
-        history: [],
-        yearLevelId: student.id || null
-      });
-      existingNames.add(student.name.toLowerCase());
-    });
+  saveData();
+  
+  // Instantly redraw the Records Tab list view without a manual refresh
+  renderCategories();
+  
+  if (isOrg()) populateAddRemittanceForm();
+  eveAlert("Collection Added!");
+}
 
-    saveData();
-    
-    // 🌟 FIX: Instantly redraw the Records Tab list view without a manual refresh
-    renderCategories();
-    
-    if (isOrg()) populateAddRemittanceForm();
-    eveAlert("Collection Added!");
-  }
 
 
 function renameCategory() {
@@ -3208,49 +3194,40 @@ function deselectAllAddAll() {
     renderItemList();
   }
 
-function openQuickPayModal() {
-  const catObj = db.categories[currentCategory];
-  if (!catObj || catObj.records.length === 0) {
-    return eveAlert(`No ${lbl("year levels").toLowerCase()} in this collection yet. Add some first (or use "${lbl("Add All Year Level")}").`, true);
+function setQuickPayModalMethod(method) {
+  const hiddenInput = document.getElementById("quick-pay-method-value");
+  if (hiddenInput) hiddenInput.value = method;
+
+  const container = document.getElementById("quick-pay-method-toggle");
+  if (container) {
+    container.querySelectorAll(".method-btn").forEach(btn => {
+      const isTarget = btn.getAttribute("data-method") === method;
+      btn.classList.toggle("active", isTarget);
+      
+      if (isTarget) {
+        if (method === "cash") {
+          btn.style.background = "linear-gradient(135deg, var(--success), var(--accent))";
+          btn.style.borderColor = "transparent";
+          btn.style.color = "#fff";
+        } else {
+          btn.style.background = "linear-gradient(135deg, #0B57D0, #4C8DFF)"; // GCash Digital Blue Accent
+          btn.style.borderColor = "transparent";
+          btn.style.color = "#fff";
+        }
+      } else {
+        btn.style.background = "var(--surface-alt)";
+        btn.style.borderColor = "var(--hairline)";
+        btn.style.color = "var(--muted)";
+      }
+    });
   }
-
-  // FIXED: Overrides labels dynamically checking for Org Mode context bounds
-  const quickPayHeader = document.querySelector("#quick-pay-modal h3");
-  if (quickPayHeader) quickPayHeader.innerText = isOrg() ? "⚡ Quick Remittance Recorder" : "⚡ Quick Pay";
-
-  const searchInput = document.getElementById("quick-pay-search");
-  if (searchInput) searchInput.placeholder = isOrg() ? "Search Year Level..." : "Search student...";
-
-  const amountLabel = document.querySelector("#quick-pay-modal label[for='quick-pay-modal-amount']");
-  if (amountLabel) amountLabel.innerText = isOrg() ? "Remittance Amount per Year Level" : "Amount to Pay per Student";
-
-  const dateLabel = document.querySelector("#quick-pay-modal label[for='quick-pay-modal-date']");
-  if (dateLabel) dateLabel.innerText = isOrg() ? "Remittance Date" : "Payment Date";
-
-  const noteLabel = document.querySelector("#quick-pay-modal label[for='quick-pay-modal-note']");
-  if (noteLabel) noteLabel.innerText = isOrg() ? "Remittance Note / Details" : "Note (optional)";
-
-  const selectAllBtn = document.querySelector("#quick-pay-modal button[onclick='selectAllQuickPay()']");
-  if (selectAllBtn) selectAllBtn.innerText = isOrg() ? "Select All Year Levels" : "Select All";
-
-  const deselectAllBtn = document.querySelector("#quick-pay-modal button[onclick='deselectAllQuickPay()']");
-  if (deselectAllBtn) deselectAllBtn.innerText = isOrg() ? "Deselect All" : "Deselect All";
-
-  const confirmBtn = document.querySelector("#quick-pay-modal button[onclick='confirmQuickPayModal()']");
-  if (confirmBtn) confirmBtn.innerText = isOrg() ? "Record Batch Remittance" : "Confirm Payment";
-
-  document.getElementById("quick-pay-noun").innerText = lbl("year levels").toLowerCase();
-  document.getElementById("quick-pay-cat-label").innerText = currentCategory;
-  document.getElementById("quick-pay-modal-date").value = new Date().toISOString().slice(0, 10);
-  document.getElementById("quick-pay-modal-amount").value = "";
-  document.getElementById("quick-pay-modal-note").value = "";
-  document.getElementById("quick-pay-search").value = "";
-  document.getElementById("quick-pay-status").innerText = "";
-  
-  quickPaySelected.clear();
-  renderQuickPayList();
-  document.getElementById("quick-pay-modal").classList.remove("hidden");
 }
+
+
+
+
+
+
 
 
 function closeQuickPayModal() {
@@ -3320,6 +3297,51 @@ function toggleQuickPayCheckbox(name) {
   renderQuickPayList();
 }
 
+function openQuickPayModal() {
+  const catObj = db.categories[currentCategory];
+  if (!catObj || catObj.records.length === 0) {
+    return eveAlert(`No ${lbl("year levels").toLowerCase()} in this collection yet. Add some first (or use "${lbl("Add All Year Level")}").`, true);
+  }
+
+  // Header Title Update
+  const quickPayHeader = document.querySelector("#quick-pay-modal h3");
+  if (quickPayHeader) quickPayHeader.innerText = isOrg() ? "⚡ Quick Remittance Recorder" : "⚡ Quick Pay";
+
+  // Search input element placeholder update
+  const searchInput = document.getElementById("quick-pay-search");
+  if (searchInput) searchInput.placeholder = isOrg() ? "Search Year Level..." : "Search student...";
+
+  // 🛡️ SAFE OPTIONAL MODIFIERS: Keeps buttons from crashing if labels don't exist
+  const selectAllBtn = document.querySelector("#quick-pay-modal button[onclick='selectAllQuickPay()']");
+  if (selectAllBtn) selectAllBtn.innerText = isOrg() ? "Select All Year Levels" : "Select All";
+
+  const deselectAllBtn = document.querySelector("#quick-pay-modal button[onclick='deselectAllQuickPay()']");
+  if (deselectAllBtn) deselectAllBtn.innerText = isOrg() ? "Deselect All" : "Deselect All";
+
+  const confirmBtn = document.querySelector("#quick-pay-modal button[onclick='confirmQuickPayModal()']");
+  if (confirmBtn) confirmBtn.innerText = isOrg() ? "Record Batch Remittance" : "Confirm Payment";
+
+  // Clear data input fields safely
+  document.getElementById("quick-pay-noun").innerText = lbl("year levels").toLowerCase();
+  document.getElementById("quick-pay-cat-label").innerText = currentCategory;
+  document.getElementById("quick-pay-modal-date").value = new Date().toISOString().slice(0, 10);
+  document.getElementById("quick-pay-modal-amount").value = "";
+  document.getElementById("quick-pay-modal-note").value = "";
+  document.getElementById("quick-pay-search").value = "";
+  document.getElementById("quick-pay-status").innerText = "";
+  
+  // ⚡ Reset active selection state indicator back to cash defaults
+  if (typeof setQuickPayModalMethod === "function") {
+    setQuickPayModalMethod("cash");
+  }
+  
+  quickPaySelected.clear();
+  renderQuickPayList();
+  
+  // 🔓 REVEALS MODAL DRAWER OVERLAY
+  document.getElementById("quick-pay-modal").classList.remove("hidden");
+}
+
 function confirmQuickPayModal() {
   const catObj = db.categories[currentCategory];
   if (!catObj) return;
@@ -3333,11 +3355,14 @@ function confirmQuickPayModal() {
 
   const dateVal = document.getElementById("quick-pay-modal-date").value || new Date().toISOString().slice(0, 10);
   const note = document.getElementById("quick-pay-modal-note").value.trim();
+  
+  // ⚡ SCRAPE SELECTED VALUE FROM THE TOGGLE TRACKER INPUT [1]
+  const quickPayMethod = document.getElementById("quick-pay-method-value")?.value || "cash";
 
-  // FIXED: Dynamic structural text mapping constraints for absolute runtime tracking verification prompts
+  // Dynamic structural text mapping constraints for runtime validation checks [1]
   const trackingActionPromptText = isOrg() 
-    ? `Record a remittance entry of ${peso(amount)} for ${quickPaySelected.size} year level(s) inside "${currentCategory}"?`
-    : `Record a payment of ${peso(amount)} for ${quickPaySelected.size} student(s) in "${currentCategory}"?`;
+    ? `Record a remittance entry of ${peso(amount)} via ${quickPayMethod.toUpperCase()} for ${quickPaySelected.size} year level(s) inside "${currentCategory}"?`
+    : `Record a payment of ${peso(amount)} via ${quickPayMethod.toUpperCase()} for ${quickPaySelected.size} student(s) in "${currentCategory}"?`;
 
   if (!confirm(trackingActionPromptText)) return;
 
@@ -3349,11 +3374,20 @@ function confirmQuickPayModal() {
     const transactionId = "TX-QP-" + Date.now() + "-" + Math.random().toString(36).slice(2, 7);
 
     rec.paid = round2(rec.paid + amount);
-    rec.history.push({ id: transactionId, amount, date: dateVal, note: note || "Quick Remittance" });
+    
+    // Inject custom structural layout configurations [1]
+    if (!Array.isArray(rec.history)) rec.history = [];
+    rec.history.push({ 
+      id: transactionId, 
+      amount, 
+      date: dateVal, 
+      note: note || "Quick Remittance",
+      method: quickPayMethod 
+    });
     recorded++;
 
     if (isOrg()) {
-      // FIXED: Ensures batch quick records map safely down stream into the Cash Book as standard remittances
+      // Sync batch records straight downstream into general ledger as a remittance [1]
       db.cashbook.transactions.push({
         id: transactionId,
         type: "remittance",
@@ -3363,10 +3397,20 @@ function confirmQuickPayModal() {
         description: `Remittance from ${name} — ${currentCategory}`,
         amount,
         projectId: null,
-        notes: note || "Batch Quick Remittance"
+        notes: `${note || "Batch Quick Remittance"} (${quickPayMethod.toUpperCase()})`
       });
     } else {
-      db.cashbook.transactions.push({ id: transactionId, type: "income", date: dateVal, orNumber: "", category: "Year Levels Payment", description: `Payment from ${name} — ${currentCategory}`, amount, projectId: null, notes: note || "" });
+      db.cashbook.transactions.push({ 
+        id: transactionId, 
+        type: "income", 
+        date: dateVal, 
+        orNumber: "", 
+        category: "Year Levels Payment", 
+        description: `Payment from ${name} — ${currentCategory}`, 
+        amount, 
+        projectId: null, 
+        notes: `${note || ""} (${quickPayMethod.toUpperCase()})` 
+      });
     }
   });
 
@@ -3374,7 +3418,7 @@ function confirmQuickPayModal() {
   closeQuickPayModal();
   renderItemList();
   
-  // Refresh companion modules instantly to prevent visual updates delay blocks
+  // Re-calculate dashboard metrics instantly without page reload [1]
   renderCategories();
   renderCashbookSummary();
   renderCashbookList();
@@ -3387,6 +3431,7 @@ function confirmQuickPayModal() {
 
   eveAlert(successMessagePrompt);
 }
+
 
 
   async function exportCategoryCSV() {
@@ -4186,13 +4231,6 @@ function renderClassFund() {
     .filter(t => t.type === "expense")
     .reduce((s, t) => s + (Number(t.amount) || 0), 0));
   const netBalance = round2(totalPaid - totalExpenses);
-
-  summary.innerHTML = `
-    <div class="summary-card"><h4>Total Collected</h4><p style="color:var(--success)">${peso(totalPaid)}</p></div>
-    <div class="summary-card"><h4>Total Expenses</h4><p style="color:var(--danger)">${peso(totalExpenses)}</p></div>
-    <div class="summary-card"><h4>Net Balance</h4><p style="color:${netBalance < 0 ? 'var(--danger)' : 'var(--accent-dark)'}">${peso(netBalance)}</p></div>
-    <div class="summary-card"><h4>Enrolled</h4><p>${allStudents.length}</p></div>
-  `;
 
   if (missedCount > 0 && totalUnpaid > 0) {
     alertBox.innerHTML = `
@@ -8211,496 +8249,223 @@ window.createNewNoteFlow = function () {
 })();
 
 
-
-/* =========================================================================
-   QUICK DELETE — one shared modal, three uses
-   -------------------------------------------------------------------------
-   openQuickDeleteModal('collections')  -> Records tab: delete many collections
-   openQuickDeleteModal('records')      -> inside a collection: remove many
-                                           students from that collection
-   openQuickDeleteModal('students')     -> Year Level tab: delete many
-                                           year levels / students from the
-                                           permanent database
-   The modal lets you search, tick several items (or Select All), then press
-   Delete Selected. The button asks for a second tap to confirm, so it works
-   in the Android app without relying on the phone's confirm() popup.
-   One batch = one saveData(), so a single Undo (↺) restores everything.
-   ========================================================================= */
-const QUICK_DELETE_MODES = {
-  records: {
-    title: () => "Quick Delete " + lbl("Year Levels"),
-    desc: () => "Tick the " + lbl("year levels").toLowerCase() + " to remove from \"" + (currentCategory || "this collection") + "\". Their payment history in this collection is removed too; they stay in the database.",
-    getItems: () => (((db.categories || {})[currentCategory] || {}).records || [])
-      .map(rec => {
-        const bal = round2((Number(rec.due) || 0) - (Number(rec.paid) || 0));
-        return { id: rec.name, label: rec.name, sub: bal <= 0 ? "Paid" : "Bal " + peso(bal) };
-      })
-      .sort((a, b) => a.label.localeCompare(b.label)),
-    remove: (ids) => {
-      const gone = new Set(ids);
-      const cat = db.categories[currentCategory];
-      if (cat) cat.records = (cat.records || []).filter(r => !gone.has(r.name));
-      editingIndex = null;
-    },
-    refresh: () => {
-      renderItemList();
-      renderSummary();
-      if (typeof renderCategories === "function") renderCategories();
-    },
-    noun: (n) => (n === 1 ? lbl("year level") : lbl("year levels")).toLowerCase()
-  },
-  collections: {
-    title: () => "Quick Delete Collections",
-    desc: () => "Tick the collections to remove. Their payment records and linked Cashbook transactions and transfers are deleted too.",
-    getItems: () => Object.keys(db.categories || {})
-      .sort((a, b) => a.localeCompare(b))
-      .map(name => {
-        const n = ((db.categories[name] || {}).records || []).length;
-        return { id: name, label: name, sub: n + (n === 1 ? " record" : " records") };
-      }),
-    remove: (ids) => {
-      ids.forEach(cat => {
-        if (db.cashbook && Array.isArray(db.cashbook.transactions)) {
-          db.cashbook.transactions = db.cashbook.transactions.filter(t => {
-            const matchCategory = String(t.category).toLowerCase() === String(cat).toLowerCase();
-            const matchDescription = t.description && t.description.includes(cat);
-            return !(matchCategory || matchDescription);
-          });
-        }
-        if (Array.isArray(db.transfers)) db.transfers = db.transfers.filter(t => t.from !== cat && t.to !== cat);
-        delete db.categories[cat];
-      });
-    },
-    refresh: () => {
-      renderCategories();
-      renderCashbookSummary();
-      renderCashbookList();
-      renderSummary();
-      if (typeof renderCashbookLog === "function") renderCashbookLog();
-      if (typeof generateStatement === "function") generateStatement();
-    },
-    noun: (n) => n === 1 ? "collection" : "collections"
-  },
-  students: {
-    title: () => "Quick Delete " + lbl("Year Levels"),
-    desc: () => "Tick the " + lbl("year levels").toLowerCase() + " to remove from the database. They are also removed from every collection.",
-    getItems: () => [...(db.students || [])]
-      .sort((a, b) => a.name.localeCompare(b.name))
-      .map(st => {
-        const sub = isOrg() ? (() => { const c = getYearLevelStudentCount(st); return c + (c === 1 ? " student" : " students"); })() : "";
-        return { id: st.name, label: st.name, sub };
-      }),
-    remove: (ids) => {
-      const gone = new Set(ids);
-      Object.keys(db.categories || {}).forEach(cat => {
-        db.categories[cat].records = (db.categories[cat].records || []).filter(r => !gone.has(r.name));
-      });
-      db.students = db.students.filter(st => !gone.has(st.name));
-    },
-    refresh: () => {
-      renderStudents();
-      renderSummary();
-      if (typeof renderCategories === "function") renderCategories();
-      if (isClass() && typeof renderClassFund === "function") renderClassFund();
-    },
-    noun: (n) => (n === 1 ? lbl("year level") : lbl("year levels")).toLowerCase()
-  }
-};
-
-let quickDeleteMode = null;
+// Memory block tracker configuration registry
 let quickDeleteSelected = new Set();
-let quickDeleteArmed = false;
-let quickDeleteArmTimer = null;
+let quickDeleteContextMode = "collection"; // Context Flag: "collection" or "database"
 
-function openQuickDeleteModal(mode) {
-  const cfg = QUICK_DELETE_MODES[mode];
-  const modal = document.getElementById("quick-delete-modal");
-  if (!cfg || !modal) return;
-  quickDeleteMode = mode;
-  quickDeleteSelected = new Set();
-  resetQuickDeleteArm();
-  document.getElementById("qd-title").innerText = cfg.title();
-  document.getElementById("qd-desc").innerText = cfg.desc();
-  document.getElementById("qd-search").value = "";
-  modal.classList.remove("hidden");
-  renderQuickDeleteList();
-}
-
-function closeQuickDeleteModal() {
-  document.getElementById("quick-delete-modal")?.classList.add("hidden");
-  quickDeleteMode = null;
-  quickDeleteSelected = new Set();
-  resetQuickDeleteArm();
-}
-
-function resetQuickDeleteArm() {
-  quickDeleteArmed = false;
-  clearTimeout(quickDeleteArmTimer);
-  const btn = document.getElementById("qd-delete-btn");
-  if (btn) btn.classList.remove("qd-armed");
-}
-
-function getQuickDeleteVisibleItems() {
-  const cfg = QUICK_DELETE_MODES[quickDeleteMode];
-  if (!cfg) return [];
-  const term = (document.getElementById("qd-search")?.value || "").trim().toLowerCase();
-  return cfg.getItems().filter(item => !term || item.label.toLowerCase().includes(term));
-}
-
-function renderQuickDeleteList() {
-  const list = document.getElementById("qd-list");
-  const cfg = QUICK_DELETE_MODES[quickDeleteMode];
-  if (!list || !cfg) return;
-
-  // Forget selections for items that no longer exist
-  const allIds = new Set(cfg.getItems().map(i => i.id));
-  quickDeleteSelected.forEach(id => { if (!allIds.has(id)) quickDeleteSelected.delete(id); });
-
-  const items = getQuickDeleteVisibleItems();
-  if (items.length === 0) {
-    list.innerHTML = `<div class="qd-empty">${allIds.size === 0 ? "Nothing to delete yet." : "No matches."}</div>`;
-  } else {
-    list.innerHTML = items.map(item => {
-      const checked = quickDeleteSelected.has(item.id);
-      return `<label class="qd-row${checked ? " selected" : ""}">
-        <input type="checkbox" data-qd-id="${esc(item.id)}"${checked ? " checked" : ""}>
-        <span class="qd-name">${esc(item.label)}</span>
-        ${item.sub ? `<span class="qd-sub">${esc(item.sub)}</span>` : ""}
-      </label>`;
-    }).join("");
-    list.querySelectorAll("input[data-qd-id]").forEach(cb => {
-      cb.addEventListener("change", () => {
-        const id = cb.getAttribute("data-qd-id");
-        if (cb.checked) quickDeleteSelected.add(id); else quickDeleteSelected.delete(id);
-        cb.closest(".qd-row")?.classList.toggle("selected", cb.checked);
-        resetQuickDeleteArm();
-        updateQuickDeleteFooter();
-      });
-    });
+/**
+ * Open Modal from the Collection / Records Tab View
+ */
+function openQuickDeleteModal() {
+  const catObj = db.categories[currentCategory];
+  if (!catObj || !catObj.records || catObj.records.length === 0) {
+    return eveAlert("This collection is already empty.", true);
   }
-  updateQuickDeleteFooter();
+
+  quickDeleteContextMode = "collection"; // Set context path flag
+  _initSharedQuickDeleteOverlay(`Collection: ${currentCategory}`, "Select which student cards to drop from this collection permanently. Their master profiles are unaffected.");
 }
 
-function updateQuickDeleteFooter() {
-  const cfg = QUICK_DELETE_MODES[quickDeleteMode];
-  const btn = document.getElementById("qd-delete-btn");
-  const status = document.getElementById("qd-status");
-  if (!cfg || !btn || !status) return;
-  const n = quickDeleteSelected.size;
-  btn.disabled = n === 0;
-  btn.innerText = quickDeleteArmed ? `Tap again to delete ${n}` : (n ? `Delete Selected (${n})` : "Delete Selected");
-  status.innerText = n ? `${n} ${cfg.noun(n)} selected` : "";
+/**
+ * Open Modal from the Student Master Database Tab View
+ */
+function openDatabaseQuickDeleteModal() {
+  if (!db.students || db.students.length === 0) {
+    return eveAlert("The master database is already empty.", true);
+  }
+
+  quickDeleteContextMode = "database"; // Set context path flag
+  _initSharedQuickDeleteOverlay("Master Database Roster", "Select profiles to drop from the master roster. <br><b style='color:var(--danger)'>⚠️ Critical Warning:</b> This will cascade and automatically clear them from ALL active collections across the entire app.");
 }
 
-function quickDeleteSelectAll() {
-  getQuickDeleteVisibleItems().forEach(item => quickDeleteSelected.add(item.id));
-  resetQuickDeleteArm();
-  renderQuickDeleteList();
-}
+/**
+ * Shared initialization helper to set labels and configure adaptive button handlers
+ */
+function _initSharedQuickDeleteOverlay(titleText, descriptionHtml) {
+  const modalOverlay = document.getElementById("quick-delete-modal");
+  if (!modalOverlay) return;
 
-function quickDeleteDeselectAll() {
+  // Adapt the text strings dynamically based on which button called it
+  const titleEl = modalOverlay.querySelector("h3");
+  if (titleEl) titleEl.innerHTML = `🗑️ Quick Delete — ${titleText}`;
+
+  const descEl = modalOverlay.querySelector(".note");
+  if (descEl) descEl.innerHTML = descriptionHtml;
+
+  const searchEl = document.getElementById("quick-delete-search");
+  if (searchEl) searchEl.value = "";
+
+  const statusEl = document.getElementById("quick-delete-status");
+  if (statusEl) statusEl.innerText = "";
+
   quickDeleteSelected.clear();
-  resetQuickDeleteArm();
+  
+  // Compile the list view
   renderQuickDeleteList();
+
+  // Route the form submission button to fire the correct final database operation handler function
+  const submitBtn = modalOverlay.querySelector("button[onclick*='confirm']");
+  if (submitBtn) {
+    if (quickDeleteContextMode === "database") {
+      submitBtn.setAttribute("onclick", "confirmDatabaseQuickDeleteAction()");
+      submitBtn.innerText = "Permanently Purge Selected Master Profiles";
+    } else {
+      submitBtn.setAttribute("onclick", "confirmCollectionQuickDeleteAction()");
+      submitBtn.innerText = "Remove Selected From Collection";
+    }
+  }
+
+  // Display the sheet fluidly
+  modalOverlay.classList.add("is-active");
+  document.body.style.overflow = "hidden";
 }
 
-function quickDeleteConfirm() {
-  const cfg = QUICK_DELETE_MODES[quickDeleteMode];
-  const btn = document.getElementById("qd-delete-btn");
-  if (!cfg || quickDeleteSelected.size === 0) return;
+/**
+ * Closes out the active overlay panel safely and resets state tracking flags.
+ */
+function closeQuickDeleteModal() {
+  const modalOverlay = document.getElementById("quick-delete-modal");
+  if (modalOverlay) {
+    modalOverlay.classList.remove("is-active");
+    document.body.style.overflow = ""; 
+  }
+  quickDeleteSelected.clear();
+}
 
-  // First tap arms the button, second tap (within 4s) performs the delete
-  if (!quickDeleteArmed) {
-    quickDeleteArmed = true;
-    btn?.classList.add("qd-armed");
-    updateQuickDeleteFooter();
-    clearTimeout(quickDeleteArmTimer);
-    quickDeleteArmTimer = setTimeout(() => { resetQuickDeleteArm(); updateQuickDeleteFooter(); }, 4000);
+/**
+ * Dual-Mode List Parser loop builds layout checkboxes cleanly
+ */
+function renderQuickDeleteList() {
+  const searchInput = document.getElementById("quick-delete-search");
+  const searchTerm = searchInput ? searchInput.value.toLowerCase() : "";
+  const listContainer = document.getElementById("quick-delete-list");
+  if (!listContainer) return;
+
+  let rawDataSourceArray = [];
+
+  // Scrape the correct array based on context routing flags
+  if (quickDeleteContextMode === "database") {
+    rawDataSourceArray = db.students || [];
+  } else {
+    const catObj = db.categories[currentCategory];
+    rawDataSourceArray = catObj ? (catObj.records || []) : [];
+  }
+
+  const matches = rawDataSourceArray
+    .filter(r => r && r.name && r.name.toLowerCase().includes(searchTerm))
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  if (matches.length === 0) {
+    listContainer.innerHTML = `<p class="note" style="text-align:center; padding:16px;">No profiles found matching search queries.</p>`;
     return;
   }
 
-  const ids = Array.from(quickDeleteSelected);
-  cfg.remove(ids);
-  saveData();          // single save => one Undo restores the whole batch
-  cfg.refresh();
-  const msg = `Deleted ${ids.length} ${cfg.noun(ids.length)}. Tap ↺ Undo if that was a mistake.`;
-  closeQuickDeleteModal();
-  if (typeof window.eveAlert === "function") window.eveAlert(msg);
-}
+  listContainer.innerHTML = matches.map(r => `
+    <div class="add-all-item ${quickDeleteSelected.has(r.name) ? 'selected' : ''}" data-shared-del-name="${esc(r.name)}" style="padding: 11px 14px; margin-bottom: 0; display: flex; justify-content: space-between; align-items: center; border: 1px solid var(--hairline); border-radius: var(--radius-sm); cursor: pointer; background: var(--surface); text-align: left; box-sizing: border-box; width: 100%;">
+      <span style="font-weight:600; font-size:14px; color: var(--ink);">${esc(r.name)}</span>
+      <div class="check-indicator" style="color: var(--danger); background: rgba(179,66,59,0.1); border-color: var(--danger); width: 22px; height: 22px; font-size: 11px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-left: auto; flex-shrink: 0;">${quickDeleteSelected.has(r.name) ? '✓' : ''}</div>
+    </div>
+  `).join("");
 
-
-/* =========================================================================
-   PHONE BACK BUTTON / SWIPE-BACK SUPPORT
-   -------------------------------------------------------------------------
-   Makes the phone's system Back button and the edge-swipe back gesture step
-   back through the app (close the top-most popup / full-screen panel, leave
-   a detail view, return to the Records tab) instead of closing the app.
-
-   • Android app WITH the Capacitor "App" plugin: listens to the native
-     backButton event and asks "Press back again to exit" on the main screen.
-   • Everything else (browser / PWA / app without the App plugin): uses the
-     browser History API so the system back gesture steps back the same way.
-   ========================================================================= */
-(function initBackNavigation() {
-  "use strict";
-  if (window.__backNavInstalled) return;
-  window.__backNavInstalled = true;
-
-  const HOME_TAB = "inventory-section";
-  const BLOCKING = new Set(["activation-overlay", "pin-overlay", "mode-overlay"]); // must never be dismissed by Back
-  const OVERLAY_SELECTOR = ".fullscreen-overlay, .activation-overlay, .modal-overlay";
-
-  // overlay id -> name of the app's own close function (keeps cleanup logic intact)
-  const OVERLAY_CLOSERS = {
-    "cashbook-log-overlay": "closeCashbookLog",
-    "cashbook-edit-modal": "closeCashbookEdit",
-    "backup-fullscreen-overlay": "closeBackupFullscreen",
-    "statement-fullscreen-overlay": "closeStatementFullscreen",
-    "add-all-modal": "closeAddAllModal",
-    "quick-pay-modal": "closeQuickPayModal",
-    "rename-modal": "closeRenameModal",
-    "transfer-modal": "closeTransferModal",
-    "edit-history-modal": "closeEditHistoryModal",
-    "cf-ledger-edit-modal": "closeCfLedgerEdit",
-    "cf-payment-modal": "closeClassFundPaymentModal",
-    "collection-edit-modal": "closeCollectionEdit",
-    "record-roster-picker": "closeRecordRosterPicker",
-    "record-roster-overlay": "closeRecordRosterBucket",
-    "org-roster-fullscreen": "closeOrgRosterFullscreen",
-    "cf-students-overlay": "closeCfStudentsOverlay",
-    "cf-ledger-overlay": "closeCfLedgerOverlay",
-    "eve-inventory-overlay": "closeEveInventory",
-    "eve-summary-detail-overlay": "closeEveSummaryDetail",
-    "student-bucket-modal": "closeStudentBucket",
-    "eve-calc-overlay": "closeEveCalcModal",
-    "eve-notes-overlay": "closeEveNotesModal",
-    "remit-manager-modal": "closeRemitManagerModal",
-    "mode-switch-confirm-modal": "closeSwitchModeConfirm",
-    "quick-delete-modal": "closeQuickDeleteModal"
-  };
-
-  const $ = id => document.getElementById(id);
-  const isShown = el => !!el && getComputedStyle(el).display !== "none" && el.getClientRects().length > 0;
-  const callGlobal = (name, ...args) => {
-    if (typeof window[name] === "function") { window[name](...args); return true; }
-    return false;
-  };
-
-  /* ---------- What counts as a "layer" the Back button can peel off ---------- */
-  let overlayOrder = []; // overlays in the order they were opened (last = top-most)
-
-  function getOpenOverlays() {
-    const open = Array.from(document.querySelectorAll(OVERLAY_SELECTOR))
-      .filter(el => !BLOCKING.has(el.id) && isShown(el));
-    overlayOrder = overlayOrder.filter(el => open.includes(el)).concat(open.filter(el => !overlayOrder.includes(el)));
-    return overlayOrder;
-  }
-
-  function overlayLayer(el) {
-    return {
-      isOpen: () => isShown(el),
-      close: () => {
-        const fn = OVERLAY_CLOSERS[el.id];
-        if (fn && callGlobal(fn)) return;
-        // Generic fallback: press the panel's own Close / Back / Cancel button
-        const btn = Array.from(el.querySelectorAll("button")).find(b =>
-          /close|back|cancel/i.test(b.getAttribute("onclick") || "") || /close|back|cancel/i.test(b.textContent || ""));
-        if (btn) btn.click();
-      },
-      force: () => {
-        el.classList.add("hidden");
-        el.classList.remove("is-active");
-        if (el.classList.contains("modal-overlay")) el.style.display = "none";
-        document.body.style.overflow = "";
-      }
-    };
-  }
-
-  function viewLayer(id, closeFn) {
-    const el = $(id);
-    return {
-      isOpen: () => isShown(el),
-      close: closeFn,
-      force: () => el && el.classList.add("hidden")
-    };
-  }
-
-  function getLayers() {
-    const layers = [];
-
-    // 1. Main tabs: any tab other than Records steps back to Records
-    const activePage = Array.from(document.querySelectorAll(".page"))
-      .find(p => !p.classList.contains("hidden") && isShown(p));
-    if (activePage && activePage.id !== HOME_TAB) {
-      layers.push({
-        isOpen: () => {
-          const p = Array.from(document.querySelectorAll(".page")).find(x => !x.classList.contains("hidden") && isShown(x));
-          return !!p && p.id !== HOME_TAB;
-        },
-        close: () => callGlobal("switchTab", HOME_TAB, $("nav-inventory")),
-        force: () => callGlobal("switchTab", HOME_TAB, $("nav-inventory"))
-      });
-    }
-
-    // 2. Detail views inside tabs
-    if (isShown($("item-view"))) layers.push(viewLayer("item-view", () => callGlobal("backToCategories")));
-    if (isShown($("student-profile-view"))) layers.push(viewLayer("student-profile-view", () => callGlobal("backToStudentList")));
-    if (isShown($("projects-view")) || isShown($("project-detail-view"))) {
-      layers.push({
-        isOpen: () => isShown($("projects-view")) || isShown($("project-detail-view")),
-        close: () => callGlobal("hideProjectsView"),
-        force: () => { $("projects-view")?.classList.add("hidden"); $("project-detail-view")?.classList.add("hidden"); }
-      });
-    }
-    if (isShown($("project-detail-view"))) layers.push(viewLayer("project-detail-view", () => callGlobal("backToProjectsList")));
-
-    // 3. Full-screen panels and popups, in the order they were opened
-    getOpenOverlays().forEach(el => layers.push(overlayLayer(el)));
-
-    // 4. Note editor (lives inside the Notepad panel)
-    if (isShown($("notes-editor"))) {
-      layers.push({
-        isOpen: () => isShown($("notes-editor")),
-        close: () => { const b = document.querySelector("#notes-editor .btn-cancel"); if (b) b.click(); },
-        force: () => $("notes-editor")?.classList.add("hidden")
-      });
-    }
-
-    // 5. Open dropdown menus (settings, filters, accordions) close first
-    const openDropdowns = () => Array.from(document.querySelectorAll(
-      "#settings-menu:not(.hidden), #item-filters-menu:not(.hidden), .auto-close-dropdown-content:not(.hidden)")).filter(isShown);
-    if (openDropdowns().length) {
-      layers.push({
-        isOpen: () => openDropdowns().length > 0,
-        close: () => openDropdowns().forEach(el => el.classList.add("hidden")),
-        force: () => openDropdowns().forEach(el => el.classList.add("hidden"))
-      });
-    }
-
-    return layers;
-  }
-
-  // Closes the top-most layer. Returns true if something was closed.
-  function closeTop() {
-    const layers = getLayers();
-    const top = layers[layers.length - 1];
-    if (!top) return false;
-    try { top.close(); } catch (err) { console.warn("[back-nav] close failed:", err); }
-    try { if (top.isOpen()) top.force(); } catch (err) { console.warn("[back-nav] force close failed:", err); }
-    return true;
-  }
-
-  /* ---------- "Press back again to exit" toast ---------- */
-  let toastEl = null, toastTimer = null;
-  function showExitToast() {
-    if (!toastEl) {
-      toastEl = document.createElement("div");
-      toastEl.textContent = "Press back again to exit";
-      toastEl.style.cssText = "position:fixed;left:50%;bottom:calc(90px + env(safe-area-inset-bottom,0px));" +
-        "transform:translateX(-50%);background:rgba(30,30,30,.92);color:#fff;padding:10px 18px;border-radius:22px;" +
-        "font:600 13px 'Inter',sans-serif;z-index:99999;pointer-events:none;opacity:0;transition:opacity .2s;";
-      document.body.appendChild(toastEl);
-    }
-    toastEl.style.opacity = "1";
-    clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => { toastEl.style.opacity = "0"; }, 1800);
-  }
-
-  /* ---------- Route A: native Capacitor Back button (Android app) ---------- */
-  const cap = window.Capacitor;
-  const nativeApp = cap && typeof cap.isPluginAvailable === "function" && cap.isPluginAvailable("App")
-    ? cap.Plugins && cap.Plugins.App : null;
-
-  if (nativeApp && typeof nativeApp.addListener === "function") {
-    let lastBackAt = 0;
-    nativeApp.addListener("backButton", () => {
-      if (closeTop()) return;
-      const now = Date.now();
-      if (now - lastBackAt < 2000) {
-        if (typeof nativeApp.exitApp === "function") nativeApp.exitApp();
+  listContainer.querySelectorAll('.add-all-item').forEach(el => {
+    el.addEventListener('click', () => {
+      const targetName = el.getAttribute('data-shared-del-name');
+      if (quickDeleteSelected.has(targetName)) {
+        quickDeleteSelected.delete(targetName);
       } else {
-        lastBackAt = now;
-        showExitToast();
+        quickDeleteSelected.add(targetName);
       }
+      renderQuickDeleteList();
     });
-    return; // native route needs no History API work
-  }
-
-  /* ---------- Route B: History API (browser, PWA, or app without App plugin) ---------- */
-  const sid = Math.random().toString(36).slice(2);
-  let pushed = 0;        // how many history entries we've stacked above the base entry
-  let ignorePops = 0;    // popstate events caused by our own history.go()
-  let unwinding = false; // true while unwinding history before a page reload
-  let syncQueued = false;
-
-  history.replaceState({ sid, d: 0 }, "");
-
-  function sync() {
-    syncQueued = false;
-    if (ignorePops > 0 || unwinding) return;
-    const n = getLayers().length;
-    if (n > pushed) {
-      while (pushed < n) { pushed++; history.pushState({ sid, d: pushed }, ""); }
-    } else if (n < pushed) {
-      const diff = pushed - n;
-      pushed = n;
-      ignorePops++;
-      history.go(-diff);
-    }
-  }
-  function queueSync() {
-    if (syncQueued) return;
-    syncQueued = true;
-    setTimeout(sync, 0);
-  }
-
-  window.addEventListener("popstate", e => {
-    if (ignorePops > 0) { ignorePops--; queueSync(); return; }
-    const s = e.state;
-    if (!s || s.sid !== sid) return;   // not one of our entries
-    const target = s.d;
-    if (target < pushed) {
-      pushed = target;
-      let guard = 20;
-      while (getLayers().length > target && guard-- > 0) { if (!closeTop()) break; }
-    } else {
-      pushed = target;                 // forward navigation: sync() will step back if needed
-    }
-    sync();
   });
 
-  // Only look at changes that can open/close a layer (keeps this cheap)
-  const WATCH = OVERLAY_SELECTOR + ", .page, #item-view, #student-profile-view, #projects-view, #project-detail-view, " +
-    "#notes-editor, #settings-menu, #item-filters-menu, .auto-close-dropdown-content, #cashbook-main-view";
-  new MutationObserver(muts => {
-    for (const m of muts) {
-      if (m.type === "attributes") {
-        if (m.target.matches && m.target.matches(WATCH)) { queueSync(); return; }
-      } else if (m.type === "childList") {
-        for (const n of m.addedNodes) {
-          if (n.nodeType === 1 && (n.matches(WATCH) || n.querySelector(OVERLAY_SELECTOR))) { queueSync(); return; }
-        }
-      }
+  const statusEl = document.getElementById("quick-delete-status");
+  if (statusEl) {
+    if (quickDeleteSelected.size > 0) {
+      statusEl.innerText = `${quickDeleteSelected.size} account(s) marked for deletion`;
+      statusEl.style.color = "var(--danger)";
+    } else {
+      statusEl.innerText = "Tap card rows to select profiles";
+      statusEl.style.color = "var(--muted)";
     }
-  }).observe(document.body, { subtree: true, attributes: true, attributeFilter: ["class", "style"], childList: true });
+  }
+}
 
-  // Switching Org/Class mode reloads the page: unwind our history entries first
-  // so the reloaded app starts clean and Back doesn't land on stale entries.
-  if (typeof window.setMode === "function") {
-    const originalSetMode = window.setMode;
-    window.setMode = function (mode) {
-      if (pushed === 0) return originalSetMode.call(this, mode);
-      unwinding = true;
-      let done = false;
-      const finish = () => { if (done) return; done = true; originalSetMode.call(window, mode); };
-      const d = pushed;
-      pushed = 0;
-      ignorePops++;
-      window.addEventListener("popstate", () => setTimeout(finish, 0), { once: true });
-      history.go(-d);
-      setTimeout(finish, 500);
-    };
+// Map standard toggle helpers dynamically to adapt to search values
+function selectAllQuickDelete() {
+  const searchInput = document.getElementById("quick-delete-search");
+  const searchTerm = searchInput ? searchInput.value.toLowerCase() : "";
+  
+  let source = [];
+  if (quickDeleteContextMode === "database") {
+    source = db.students || [];
+  } else {
+    const catObj = db.categories[currentCategory];
+    source = catObj ? (catObj.records || []) : [];
   }
 
-  queueSync();
-})();
+  source.filter(r => r.name.toLowerCase().includes(searchTerm)).forEach(r => quickDeleteSelected.add(r.name));
+  renderQuickDeleteList();
+}
+
+function deselectAllQuickDelete() {
+  quickDeleteSelected.clear();
+  renderQuickDeleteList();
+}
+
+/**
+ * SUBMISSION BRANCH A: Execution routine for standard Collection Deletion
+ */
+function confirmCollectionQuickDeleteAction() {
+  const catObj = db.categories[currentCategory];
+  if (!catObj || quickDeleteSelected.size === 0) return;
+
+  const targetsArray = Array.from(quickDeleteSelected);
+  if (!confirm(`Are you sure you want to drop these ${quickDeleteSelected.size} student record card layouts from "${currentCategory}"?\n\nThis completely clears their transaction history for this collection. Master profiles are unaffected.`)) return;
+
+  if (db.cashbook && Array.isArray(db.cashbook.transactions)) {
+    db.cashbook.transactions = db.cashbook.transactions.filter(t => {
+      const matchCollection = String(t.description).includes(currentCategory);
+      const matchStudentName = targetsArray.some(name => String(t.description).includes(name));
+      return !(matchCollection && matchStudentName);
+    });
+  }
+
+  catObj.records = catObj.records.filter(r => !quickDeleteSelected.has(r.name));
+  _finalizeSharedQuickDeleteExecution(`Successfully removed ${targetsArray.length} student records from collection.`);
+}
+
+/**
+ * SUBMISSION BRANCH B: Execution routine for cascade Master Database Purge
+ */
+function confirmDatabaseQuickDeleteAction() {
+  if (quickDeleteSelected.size === 0) return;
+
+  const targetsArray = Array.from(quickDeleteSelected);
+  if (!confirm(`⚠️ CRITICAL MASTER PURGE:\n\nYou have selected ${quickDeleteSelected.size} student profiles for absolute deletion.\n\nThis completely erases them from the Master Database, drops them from ALL active collections trackers, clears related ledger parameters, and deletes their Class Fund logs. This action is irreversible.`)) return;
+
+  Object.keys(db.categories).forEach(cat => {
+    db.categories[cat].records = db.categories[cat].records.filter(r => !quickDeleteSelected.has(r.name));
+  });
+
+  db.students = db.students.filter(s => !quickDeleteSelected.has(s.name));
+  _finalizeSharedQuickDeleteExecution(`Successfully executed cascade removal of ${targetsArray.length} master profiles from system memory.`);
+}
+
+/**
+ * Shared file writer commit cycle resets background layout totals cleanly
+ */
+function _finalizeSharedQuickDeleteExecution(successAlertMessage) {
+  saveData();
+  closeQuickDeleteModal();
+  
+  renderStudents();
+  renderCategories();
+  renderCashbookSummary();
+  renderCashbookList();
+  renderSummary();
+  if (typeof renderClassFund === "function") renderClassFund();
+  if (typeof renderItemList === "function") renderItemList();
+
+  eveAlert(successAlertMessage);
+}
