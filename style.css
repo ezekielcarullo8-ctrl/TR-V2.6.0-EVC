@@ -4272,108 +4272,110 @@ h3 > .inline-tip-bulb, h4 > .inline-tip-bulb {
   z-index: 9999 !important;
 }
 
-
-
-
-/* =========================================================================
-   EVE SPEECH BUBBLE — shrink-wrap to the text (no empty gap on short text)
-   Uses width:max-content so the bubble is as wide as its text (up to a cap),
-   instead of being squeezed by Eve's narrow container. Words wrap only at
-   spaces, never in the middle of a word.
-   ========================================================================= */
-.eve-bot .speech-bubble {
-  width: max-content !important;
-  min-width: 0 !important;
-  min-height: 0 !important;
-  height: auto !important;
-  max-width: min(300px, calc(100vw - 40px)) !important;
-  padding: 10px 14px !important;
-  line-height: 1.4 !important;
+/* Center the collection title text */
+#item-view-title {
   text-align: center;
-  box-sizing: border-box !important;
-}
-.eve-bot .speech-bubble .eve-msg {
-  margin: 0 !important;
-  padding: 0 !important;
-  white-space: normal;
-  word-break: normal !important;
-  overflow-wrap: break-word !important;
-  hyphens: none !important;
-}
-.eve-bot .speech-bubble .eve-actions:empty {
-  display: none !important;
-  margin: 0 !important;
-}
-.eve-bot .speech-bubble .eve-actions:not(:empty) {
-  margin-top: 8px !important;
-}
-@media (max-width: 560px) {
-  .eve-bot .speech-bubble {
-    width: max-content !important;
-    min-height: 0 !important;
-    max-width: calc(100vw - 40px) !important;
-    padding: 9px 13px !important;
-  }
+  flex: 1;
+  margin-left: 40px;  /* Safe gap away from the back button */
+  margin-right: 40px; /* Safe gap away from the info button */
+  display: block;
+  position: relative;
 }
 
-
-/* =========================================================================
-   QUICK DELETE (shared modal + trigger buttons)
-   ========================================================================= */
-.quick-delete-btn {
-  width: auto !important;
-  height: auto !important;
-  min-height: 36px;
-  padding: 8px 16px !important;
-  margin: 0 0 12px 0 !important;
-  font-size: 13px !important;
-  font-weight: 700;
-  background: transparent !important;
-  color: var(--danger) !important;
-  border: 1.5px solid var(--danger) !important;
-  border-radius: 10px !important;
-  box-shadow: none !important;
-  cursor: pointer;
+/* Center the decorative line underneath the centered title text */
+#item-view-title::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%); /* Shifts the line perfectly to the middle */
+  width: 32px;
+  height: 2.5px;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  border-radius: 2px;
 }
-.quick-delete-btn:hover { background: var(--danger) !important; color: #fff !important; }
-.qd-card { max-width: 520px !important; width: 100%; padding: 24px 20px !important; text-align: left !important; box-sizing: border-box; }
-.qd-list { max-height: 45vh; overflow-y: auto; border: 1px solid var(--hairline); border-radius: 12px; background: var(--surface-alt, #f8f7f4); }
-.qd-row { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-bottom: 1px solid var(--hairline); cursor: pointer; }
-.qd-row:last-child { border-bottom: none; }
-.qd-row input[type="checkbox"] { width: 22px; height: 22px; min-width: 22px; margin: 0; accent-color: var(--danger); }
-.qd-row .qd-name { flex: 1; min-width: 0; font-weight: 600; overflow-wrap: anywhere; }
-.qd-row .qd-sub { font-size: 12px; color: var(--muted); white-space: nowrap; }
-.qd-row.selected { background: rgba(179, 66, 59, 0.10); }
-.qd-empty { padding: 22px 12px; text-align: center; color: var(--muted); }
-#qd-delete-btn.qd-armed { background: #8f332d !important; animation: qdPulse .9s ease-in-out infinite alternate; }
-#qd-delete-btn:disabled { opacity: .45; cursor: not-allowed; }
-@keyframes qdPulse { from { box-shadow: 0 0 0 0 rgba(179,66,59,.5); } to { box-shadow: 0 0 0 6px rgba(179,66,59,0); } }
 
-
-/* =========================================================================
-   TOP BAR: Calculator button sits beside Settings, with a clear gap
-   ========================================================================= */
-.top-bar .toggle-group {
+/* Ensure the header distributes space correctly */
+.item-header {
   display: flex;
   align-items: center;
-  gap: 14px;
+  justify-content: space-between;
+  width: 100%;
 }
 
-/* =========================================================================
-   COLLECTION VIEW: collection name centered in the header
-   (equal-width side columns keep the title truly centered even though the
-   Back button and the "i" button are different sizes)
-   ========================================================================= */
-#item-view > .item-header {
-  display: grid;
-  grid-template-columns: minmax(64px, 1fr) minmax(0, auto) minmax(64px, 1fr);
-  align-items: center;
-  column-gap: 10px;
+/* Keeps the top-right action button cleanly aligned with the cards container */
+.item-header + .item-toolbar + .row + div {
+  margin-top: 4px;
 }
-#item-view > .item-header > :first-child { justify-self: start; }
-#item-view > .item-header > :last-child  { justify-self: end; margin-left: 0 !important; }
-#item-view > .item-header > h3 {
-  margin: 0;
-  text-align: center;
-  overflow-wrap: anywhere;
+
+/* Increase the size of the close button while keeping it locked in the top right corner */
+#quick-delete-modal .close-btn {
+  position: absolute !important;
+  top: 14px !important;       /* Positions it neatly near the top edge */
+  right: 16px !important;     /* Flushes it securely to the right edge */
+  font-size: 26px !important;  /* Makes the '×' symbol noticeably larger and easier to see */
+  width: 36px !important;     /* Expands the square touch target bounding box */
+  height: 36px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background: none !important;
+  border: none !important;
+  color: var(--muted, #6E7A72) !important;
+  cursor: pointer !important;
+  line-height: 1 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  z-index: 100 !important;    /* Keeps it safely layered above headers */
+  transition: color 0.15s ease, transform 0.15s ease !important;
+}
+
+/* Add an active hover interaction feedback */
+#quick-delete-modal .close-btn:hover {
+  color: var(--danger, #b3423b) !important;
+  transform: scale(1.08);     /* Gentle expansion feedback on cursor focus */
+}
+
+/* Align all top bar elements horizontally in a single row */
+.right-group {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  gap: 8px !important;
+  flex-wrap: nowrap !important; /* Prevents vertical breaking or stacking */
+}
+
+/* Ensure the layout wrapper container maintains internal row properties */
+.top-bar {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+}
+
+/* Force specific structural containers to flow horizontally */
+.toggle-group {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 8px !important;
+}
+
+/* Keep the circular utility buttons inline without forcing carriage line drops */
+.icon-toggle,
+.settings-dropdown {
+  display: inline-block !important;
+  margin: 0 !important;       /* Strips any vertical block margins */
+  flex-shrink: 0 !important;   /* Prevents round button borders from flattening */
+}
+
+button[onclick*="openCalcModal"] {
+  margin-right: 20px !important; /* Forces breathing room on its right */
+  margin-left: 9px !important;  /* Forces breathing room on its left */
+}
+
+/* Ensure the parent block doesn't compress or squash our new gaps */
+.right-group {
+  gap: 16px !important; /* Opens up the general spacing between all top bar icons */
 }
