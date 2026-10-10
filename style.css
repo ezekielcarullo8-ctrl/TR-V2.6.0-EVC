@@ -4379,3 +4379,34 @@ button[onclick*="openCalcModal"] {
 .right-group {
   gap: 16px !important; /* Opens up the general spacing between all top bar icons */
 }
+
+/* =========================================================================
+   DYNAMIC FLUID INTEL-BOUND speech BUBBLE WRAPPING
+   ========================================================================= */
+.eve-bot .speech-bubble {
+  /* Let width and height compute strictly from text length layout metrics */
+  width: max-content !important;
+  max-width: min(320px, calc(100vw - 40px)) !important; /* Cap width safely so it never breaks layout boundaries on small viewports */
+  height: auto !important;
+  min-height: min-content !important;
+  
+  /* Ensure paragraph text wraps cleanly inside flexible limits */
+  white-space: normal !important;
+  word-break: break-word !important;
+  overflow-wrap: anywhere !important;
+  box-sizing: border-box !important;
+  
+  /* Retain flex stacking logic to keep alignment centers aligned */
+  display: inline-flex !important;
+  flex-direction: column !important;
+  justify-content: center !important;
+  align-items: center !important;
+}
+
+@media (max-width: 560px) {
+  .eve-bot .speech-bubble {
+    /* Tighten boundaries slightly on mobile layouts */
+    width: auto !important;
+    max-width: calc(100vw - 44px) !important;
+  }
+}
